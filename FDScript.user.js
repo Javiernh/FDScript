@@ -2,7 +2,7 @@
 // @name     FDScript
 // @include  http://mush.vg/fds*
 // @require  http://code.jquery.com/jquery-latest.js
-// @version  1.2.10
+// @version  1.2.11
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Lundi, LAbare
@@ -22,7 +22,7 @@
  * retri des sanction intra-catégorie
  * log perso dans fenêtre de base : pas rouge
  * liens expé _blank
- * popup déplacements draggable, resizable & z-indexable
+ * popup déplacements déplaçable, redimensionnable & z-indexable
  * taille des fenêtres de log (paramétrable)
  * séparer canaux privés, annonces, missions
  * easter egg
@@ -792,10 +792,19 @@ function start() {
 		//Expedition links in new tab
 		$('.ui-dialog a[href]').attr('target', '_blank');
 
-		//Scrollable mush channel
+		//Scrollable mush channel + divide cycles
 		var mush = $('.ui-dialog-content:not(.FDScript-mushChannel) > li');
 		if (mush.length) {
 			mush.parent().addClass('FDScript-mushChannel');
+			mush.each(function() {
+				//Cycle separation
+				if (/^\s*Jour [0-9]+ Cycle [0-9]+\s*$/.test($(this).text())) {
+					$(this).css({
+						marginBottom: '5px', paddingBottom: '5px', borderBottom: '2px dotted red',
+						textAlign: 'center', fontWeight: 'bold'
+					});
+				}
+			});
 		}
 
 		//Personal logs
@@ -937,3 +946,5 @@ if ($('.pol2.fds_bloc').length) { //Moderators
 else { //Judges
 	start();
 }
+
+$('<div>').text("Version du FDScript : " + GM_info.script.version).appendTo($('body'));
