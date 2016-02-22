@@ -2,55 +2,30 @@
 // @name     FDScript
 // @include  http://mush.vg/fds*
 // @require  http://code.jquery.com/jquery-latest.js
-// @version  1.2.6
+// @version  1.2.10
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Lundi, LAbare
 // ==/UserScript==
 
 /* TODO
- * taille des fenêtres de log (paramétrable)
- * séparer canaux privés
+ * sleep
+ * get a life
 
- * FAIT
+ * DONE
  * HL salissures, se laver
  * HL: transfert, victime transfert, vaccin
  * compétences et cycle de prise
  * pas auto pour modos
  * analyse logs généraux : destruction des denrées, salles dialoguées, vagues de hunters, PILGRED
  * map déplacements et qui était dans la pièce à ce moment-là (par log d'entrée)
+ * retri des sanction intra-catégorie
  * log perso dans fenêtre de base : pas rouge
- 
- * NOTES
- * lire apprenton : [EV:SKILL_LEARNED]
- * conduites : [EV:EV_OXY_MORE]
- * réservoir cassé : [EV:DECAY_O2]
- * lien Sol coupé : [EV:SHIP_NO_MORE_COM] (pas si par Xyloph)
- * lien Sol : [EV:COM_ESTABLISHED]
- * démontage douche : [EV:NERON_SHOWER_DISS] (général, pour le cycle)
- * sélection Mushs : [EV:NERON_START_GAME]
- * Mycoscan : [EV:GLOMERON_TRACES] ([EV:GLOMERON_SAFE] si nul)
- 
- * ACTIONS MUSH
- * Cuisine fongique : [AC:MIX_RATION_SPORE]
- * Phagocyter : [AC:EAT_SPORE]
- * Saboter : 
- * Démoraliser : [AC:DEPRESS]
- * Piéger pièce : [AC:TRAP_CLOSET]
- * Gelée verte : [AC:SLIME_OBJECT]
- * Portier : [AC:DOOR_SABOTAGE]
- * Piège moisi : 
- * Cauchemars : 
- * Dialoguiste : [AC:DELOG]
- * Bactériophilie : 
- * Radio pirate : 
- * Pyromane : [AC:SPREAD_FIRE]
- * Dépression de NERON : 
- * Massgeddon : [AC:MASS_GGEDON]
- * Muter : [AC:GO_BERSERK]
- * Poinçonner : [AC:INFECT]
- 
- * 2.1 Détruire ! Détruire détruire. [Hax!] Pour protéger humains des microbes, ouiiiiiih bien sûr !! Hahahh. [Kzz] Sécurité automatique : destruction des denrées périssables.
+ * liens expé _blank
+ * popup déplacements draggable, resizable & z-indexable
+ * taille des fenêtres de log (paramétrable)
+ * séparer canaux privés, annonces, missions
+ * easter egg
  */
 
 
@@ -102,19 +77,19 @@ function displayTreatment(request, params) {
 		stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
 
 		if (vaccinated) {
-			$('<img>').attr('src', '/img/icons/ui/pa_heal.png').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/pa_heal.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text("en " + vaccinated[1]).appendTo(icoDiv);
 		}
 		else if (transferred) {
-			$('<img>').attr('src', '/img/icons/ui/pageright.png').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/pageright.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text("a transféré dans " + transferred[2] + " en " + transferred[1]).appendTo(icoDiv);
 		}
 		else if (isMush) {
-			$('<img>').attr('src', '/img/icons/ui/mush.png').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text("depuis " + isMush[1]).appendTo(icoDiv);
 		}
 		else if (stolen) {
-			$('<img>').attr('src', '/img/icons/ui/mush.png').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text("corps volé par " + stolen[2] + " en " + stolen[1]).appendTo(icoDiv);
 		}
 		else {
@@ -125,6 +100,7 @@ function displayTreatment(request, params) {
 
 function highlightActions(log) {
 	if (!log.hasClass('scripted')) {
+		log.addClass('scripted');
 		var html = log.html();
 		//Highlight dirtification (normal log, extract a spore, vomit on yourself, target of massgeddon)
 		if (/\[EV:DIRTED\]|\[AC:CREATE_SPORE\]|\[EV:SYMPTOM_VOMIT\]|\[EV:AC_MASS_GGEDON_TGT\]/.test(html)) {
@@ -139,14 +115,18 @@ function highlightActions(log) {
 		else if (/\[EV:LEAVED_MUSH\]|{TRANSFERED TO (.*)\}|{WAS FORCED TO TRANSFER WITH (.*)\}|\[EV:HERO_MUTATED\]/.test(html)) {
 			log.find('span').css('color', '#F3C');
 		}
-		log.addClass('scripted');
+
+		//Highlight talkie pirate
+		else if (/HAD HIS TALKY PIRATED|HAD PIRATED (.*) TALKY/.test(html)) {
+			log.find('span').css('color', '#F3C').append($('<img>').attr('src', '/img/icons/ui/talkie.png').css('margin-left', '5px'));
+		}
 	}
 	return log;
 }
 
 function charMovements(allCharLogs) {
-	var logs = $(generalLogs[currentLogs]).find('> div > div > div').get().reverse(); //We only need the logs, from start to end
-	allCharLogs = allCharLogs.get().reverse();
+	var logs = $($(generalLogs[currentLogs]).find('> div > div > div').get().reverse()); //We only need the logs, from start to end
+	allCharLogs = $(allCharLogs.get().reverse());
 	var allCharLogsLength = allCharLogs.length;
 	var logsLength = logs.length;
 
@@ -160,15 +140,16 @@ function charMovements(allCharLogs) {
 	var positions = { 'Jin Su': null, Frieda: null, 'Kuan Ti': null, Janice: null, Roland: null, Hua: null, Paola: null, Chao: null, Finola: null, Stephen: null, Ian: null, Chun: null, Raluca: null, Gioele: null, Eleesha: null, Terrence: null, Derek: null, Andie: null };
 	var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/;
 
-	for (var i = 0; i < logsLength; i++) {
-		var log = logs[i];
-		var html = log.innerHTML.replace('&amp;eacute;', 'é');
+	logs.each(function() {
+		//De-strong character name
+		$(this).html($(this).html().replace('<strong>' + currentChar + '</strong>', currentChar));
+		var html = $(this).html().replace('&amp;eacute;', 'é');
 
 		//Detect current player death in general logs (has no room, so before room test)
 		if (/EV:NERON_HERO_DEATH|EV:OXY_LOW_DAMMIT/.test(html) && charRegexp.exec(html)[0] == currentChar) {
-			sortedLogs[logsIndex].roomLogs.push($(log));
+			sortedLogs[logsIndex].roomLogs.push($(this));
 			recordRoom = false;
-			continue;
+			return true; //jQuery: non-false return = continue
 		}
 
 		//If no room is assigned to the log, it can't be used
@@ -177,7 +158,7 @@ function charMovements(allCharLogs) {
 			room = room[1];
 		}
 		else {
-			continue;
+			return true;
 		}
 
 		//Detect movements
@@ -208,10 +189,12 @@ function charMovements(allCharLogs) {
 				}
 
 				//Add all char logs of this room
-				sortedLogs[logsIndex].charLogs.push($(allCharLogs[charIndex])); //Entry log
+				sortedLogs[logsIndex].charLogs.push(allCharLogs.eq(charIndex)); //Entry log
 				charIndex += 1;
-				while (!/EV:CHARACTER_ENTERED/.test(allCharLogs[charIndex].innerHTML)) {
-					sortedLogs[logsIndex].charLogs.push($(allCharLogs[charIndex]));
+				while (!/EV:CHARACTER_ENTERED/.test(allCharLogs.eq(charIndex).html())) {
+					var charLog = allCharLogs.eq(charIndex);
+					charLog.html(charLog.html().replace('<strong>' + currentChar + '</strong>', currentChar));
+					sortedLogs[logsIndex].charLogs.push(charLog);
 					charIndex += 1;
 					if (charIndex == allCharLogsLength) {
 						break;
@@ -222,44 +205,111 @@ function charMovements(allCharLogs) {
 
 		//Room logs
 		if (recordRoom && room == positions[currentChar]) {
-			sortedLogs[logsIndex].roomLogs.push($(log));
+			sortedLogs[logsIndex].roomLogs.push($(this));
 		}
-	}
+	});
 
 	//Result popup
-	var popup = $('<div>').attr('id', 'FDScript-popup').css({
-		position: 'absolute', top: (window.scrollY + 50) + 'px', left: Math.round((window.innerWidth - 800) / 2) + 'px', zIndex: '1500',
-		boxSizing: 'border-box', minHeight: '600px', width: '800px', padding: '10px 10px',
-		boxShadow: '#000 5px 5px 10px',
-		border: '2px #000440 solid', borderRadius: '5px',
-		backgroundColor: '#338'
-	}).appendTo($('body'));
-	$('<button>').text("X").addClass('butbg').css({ position: 'absolute', top: '5px', right: '5px' }).appendTo(popup).on('click', function() { $('#FDScript-popup').remove(); });
+	var popup = $('#FDScript-popup');
+	if (!popup.length) {
+		popup = $('<div>').attr('id', 'FDScript-popup').css({
+			position: 'absolute', top: (window.scrollY + 50) + 'px', left: Math.round((window.innerWidth - 800) / 2) + 'px', zIndex: '1500',
+			boxSizing: 'border-box', width: '800px', padding: '10px 10px',
+			resize: 'both', overflow: 'auto',
+			boxShadow: '#000 5px 5px 10px',
+			border: '2px #000440 solid', borderRadius: '5px',
+			backgroundColor: '#338'
+		}).appendTo($('body'));
+	}
+	else {
+		popup.empty();
+	}
+	$('<img>').css({ position: 'absolute', bottom: 0, right: 0 }).attr({
+		src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AIVEy040d+6twAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAXklEQVQoz2NgoCXQbvgiodP05z8DAwMDE7EaGJk4nv//90OSgYGBgZEUDVcbeF4Q1IRNA17noWsg6CdsGvD6CZ8GrH4iRgOK8whpwPATMRqQ/cTEwMDAgOFmAnyyAADp4pEx3U4jiAAAAABJRU5ErkJggg=='
+	}).appendTo(popup);
+	var zIndex = 1000;
+	$('.ui-dialog:visible').each(function() {
+		var z = parseInt($(this).css('z-index'));
+		if (zIndex < z) {
+			zIndex = z;
+		}
+	});
+	popup.css('z-index', zIndex + 1);
+
+	//Title
+	var titleDiv = $('<div>').css({ cursor: 'move', fontSize: '0.9em', textAlign: 'center' }).appendTo(popup);
+	$('<button>').text("↓").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() { $('#FDScript-popup').css('z-index', '-=1'); });
+	$('<button>').text("↑").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() { $('#FDScript-popup').css('z-index', '+=1'); });
+	var title = $('<h2>').text("Déplacements de " + currentChar).css('user-select', 'none').appendTo(titleDiv);
+	$('<button>').text("X").addClass('butbg').css({ position: 'absolute', top: '5px', right: '5px' }).appendTo(titleDiv).on('click', function() { $('#FDScript-popup').remove(); });
+
+	//Draggable popup
+	var evX = null;
+	var evY = null;
+	var moving = false;
+	title.on('mousedown', function() {
+		moving = true;
+		var zIndex = 1000;
+		$('.ui-dialog:visible').each(function() {
+			var z = parseInt($(this).css('z-index'));
+			if (zIndex < z) {
+				zIndex = z;
+			}
+		});
+		$('#FDScript-popup').css('z-index', zIndex + 1);
+    }).on('mouseup', function() {
+		moving = false;
+		evX = null;
+		evY = null;
+    });
+	$('body').on('mousemove', function(event) {
+		if (moving) {
+			if (evX == null) {
+				evX = event.pageX;
+				evY = event.pageY;
+			}
+			else {
+				var target = $('#FDScript-popup');
+				var relX = event.pageX - evX;
+				var relY = event.pageY - evY;
+				var offset = target.offset();
+				evX = event.pageX;
+				evY = event.pageY;
+				target.offset({ left: offset.left + relX, top: offset.top + relY });
+			}
+		}
+	});
+
+	//Basic structure
 	var tr = $('<tr>').appendTo($('<table>').appendTo(popup));
 	var left = $('<td>').css('vertical-align', 'top').appendTo(tr);
 	var right = $('<td>').css({ verticalAlign: 'top', paddingLeft: '10px', width: '100%' }).appendTo(tr);
 
 	//Generating the map
 	var svgRooms = [['m5.5 64.5 10 0 0 -10 30 0 0 50 -30 0 0 -10 -10 0 0 -30z'], [60, 30, 115.5, 4.5], [60, 30, 115.5, 124.5], [60, 30, 175.5, 4.5], [20, 30, 155.5, 64.5], [30, 40, 85.5, 84.5], [30, 40, 55.5, 84.5], [30, 50, 125.5, 54.5], [30, 40, 55.5, 34.5], [45, 90, 215.5, 34.5], [20, 20, 25.5, 34.5], [20, 20, 95.5, 14.5], [20, 20, 235.5, 14.5], [20, 20, 25.5, 104.5], [20, 20, 95.5, 124.5], [20, 20, 235.5, 124.5], [10, 10, 120.5, 9.5], [10, 10, 140.5, 9.5], [10, 10, 160.5, 9.5], [10, 10, 120.5, 139.5], [10, 10, 140.5, 139.5], [10, 10, 160.5, 139.5], [10, 10, 200.5, 9.5], [10, 10, 220.5, 9.5], ['m45.5 34.5 10 0 0 40 60 0 0 10 -60 0 0 40 -10 0 0 -90z'], [10, 90, 115.5, 34.5], [10, 110, 175.5, 34.5], [], [50, 30, 185.5, 124.5], ['m145.5 34.5 30 0 0 30 -20 0 0 -10 -10 0 0 -20z'], ['m145.5 124.5 30 0 0 -30 -20 0 0 10 -10 0 0 20z'], [30, 40, 85.5, 34.5], [20, 20, 125.5, 34.5], [30, 20, 185.5, 34.5], [20, 20, 125.5, 104.5], [30, 20, 185.5, 104.5]];
+	var svgDoors = [[30.5, 54.5, 10, 0], [30.5, 104.5, 10, 0], [45.5, 74.5, 0, 10], [175.5, 19.5, 0, 10], [115.5, 19.5, 0, 10], [115.5, 34.5, 10, 0], [150.5, 34.5, 10, 0], [130.5, 34.5, 10, 0], [115.5, 129.5, 0, 10], [115.5, 124.5, 10, 0], [175.5, 129.5, 0, 10], [150.5, 124.5, 10, 0], [130.5, 124.5, 10, 0], [220.5, 34.5, 10, 0], [235.5, 19.5, 0, 10], [175.5, 34.5, 10, 0], [175.5, 74.5, 0, 10], [85.5, 89.5, 0, 10], [100.5, 124.5, 10, 0], [90.5, 84.5, 10, 0], [70.5, 84.5, 10, 0], [125.5, 74.5, 0, 10], [70.5, 74.5, 10, 0], [85.5, 59.5, 0, 10], [240.5, 34.5, 10, 0], [240.5, 124.5, 10, 0], [220.5, 124.5, 10, 0], [215.5, 39.5, 0, 10], [215.5, 109.5, 0, 10], [45.5, 39.5, 0, 10], [100.5, 34.5, 10, 0], [45.5, 109.5, 0, 10], [235.5, 129.5, 0, 10], [115.5, 74.5, 0, 10], [90.5, 74.5, 10, 0], [185.5, 129.5, 0, 10], [175.5, 39.5, 0, 10], [175.5, 109.5, 0, 10], [185.5, 39.5, 0, 10], [185.5, 109.5, 0, 10]];
 	var svg = left.appendSVG('svg', { width: '265', height: '160' });
 
-	for (var i = 0; i < svgRooms.length; i++)
-	{
+	//SVG rooms
+	for (var i = 0; i < svgRooms.length; i++) {
 		var r = svgRooms[i];
 		if (!r.length) {
 			continue;
 		}
 
-		if (r.length == 1) //Pièce non rectangulaire
-		{
+		if (r.length == 1) { //Non-rectangular room
 			svg.appendSVG('path', { d: r[0], 'data-maproom': i });
 		}
-		else //Pièce rectangulaire
-		{
+		else { //Rectangular room
 			svg.appendSVG('rect', { width: r[0], height: r[1], x: r[2], y: r[3], 'data-maproom': i });
 		}
 	}
 	$('[data-maproom="6"]').attr('id', 'FDScript-mapselected');
+	//SVG doors
+	for (var i = 0; i < svgDoors.length; i++) {
+		var d = svgDoors[i];
+		svg.appendSVG('path', { d: 'm' + d.join(' '), class: 'door' });
+	}
 
 	//Rooms
 	var pathDiv = $('<div>').css({ maxHeight: '380px', marginTop: '15px', overflowY: 'auto', position: 'relative', fontSize: '0.9em' }).appendTo(left); //'relative' for position() & scroll
@@ -356,6 +406,7 @@ function charMovements(allCharLogs) {
 	}
 
 	//Logs packs
+	var packsDiv = $('<div>').appendTo(right);
 	for (var i = 0; i < sortedLogs.length; i++) {
 		var pack = $('<div>').addClass('FDScript-logsPack').attr({
 			'data-index': i,
@@ -363,7 +414,7 @@ function charMovements(allCharLogs) {
 		}).css({
 			overflowY: 'auto',
 			fontSize: '0.8em'
-		}).appendTo(right);
+		}).appendTo(packsDiv);
 		if (i != 0) {
 			pack.hide();
 		}
@@ -371,7 +422,14 @@ function charMovements(allCharLogs) {
 		//People already in the room
 		var befDiv = $('<div>').text("Déjà présents : ").css('margin-top', '10px').appendTo(pack);
 		for (var j = 0; j < sortedLogs[i].beforeLogs.length; j++) {
-			$('<img>').attr('src', '/img/design/pixel.gif').css('margin-left', '6px').addClass('cdChatAvatar char ' + sortedLogs[i].beforeLogs[j].char.toLowerCase().replace(' ', '_')).appendTo(befDiv);
+			$('<img>').attr({
+				src: '/img/design/pixel.gif',
+				title: sortedLogs[i].beforeLogs[j].char
+			}).css({
+				background: 'url("/img/art/char.png")',
+				width: '25px', height: '16px', overflow: 'hidden',
+				marginLeft: '6px'
+			}).addClass('char ' + sortedLogs[i].beforeLogs[j].char.toLowerCase().replace(' ', '_')).appendTo(befDiv);
 			befDiv.append(sortedLogs[i].beforeLogs[j].date);
 		}
 		if (sortedLogs[i].beforeLogs.length == 0) {
@@ -380,7 +438,7 @@ function charMovements(allCharLogs) {
 
 		//Char logs
 		$('<h3>').text("Logs personnels :").css('margin-top', '10px').appendTo(pack);
-		var charDiv = $('<div>').css({ maxHeight: '230px', overflowY: 'auto', backgroundColor: '#17448E' }).appendTo(pack);
+		var charDiv = $('<div>').css({ overflowY: 'auto', backgroundColor: '#17448E' }).appendTo(pack);
 		for (var j = 0; j < sortedLogs[i].charLogs.length; j++) {
 			var log = sortedLogs[i].charLogs[j];
 			log = highlightActions(log);
@@ -388,21 +446,27 @@ function charMovements(allCharLogs) {
 		}
 
 		//Room logs
-		$('<h3>').text("Logs de la pièce :").css('margin-top', '10px').appendTo(pack);
-		var roomDiv = $('<div>').css({ maxHeight: '230px', overflowY: 'auto', backgroundColor: '#17448E' }).appendTo(pack);
+		var roomLogsTitle = $('<h3>').text("Logs de la pièce : ").css('margin-top', '10px').appendTo(pack);
+		$('<a>').text("+-").appendTo(roomLogsTitle).css({
+			color: 'white', fontSize: '1.2em', textDecoration: 'underline', cursor: 'pointer'
+		}).on('click', function() { $(this).parent().next().slideToggle(); return false; });
+		var roomDiv = $('<div>').css({ overflowY: 'auto', backgroundColor: '#17448E' }).hide().appendTo(pack);
 		for (var j = 0; j < sortedLogs[i].roomLogs.length; j++) {
 			var log = sortedLogs[i].roomLogs[j];
 			log = highlightActions(log);
 			log.prependTo(roomDiv);
 		}
 	}
+
+	//Expedition links in new tab
+	popup.find('a[href]').attr('target', '_blank');
 }
 
 function generalAnalysis(shipDiv, id) {
 	var defaced = [];
 	var perished = [];
 	var waves = [];
-	var PILGRED = 'non';
+	var PILGRED = "non.";
 
 	$(generalLogs[id]).find('> div > div > div').each(function() {
 		var html = $(this).html().replace('&amp;eacute;', 'é');
@@ -419,21 +483,21 @@ function generalAnalysis(shipDiv, id) {
 			defaced.push([/[0-9]+\.[0-9]+/.exec(html)[0], /\[ROOM:([^\]]+)\]/.exec(html)[1]]); //[date, room]
 		}
 		else if (/EV:PILGRED_DONE/.test(html)) {
-			PILGRED = /[0-9]+\.[0-9]+/.exec(html)[0];
+			PILGRED = /[0-9]+\.[0-9]+/.exec(html)[0] + ".";
 		}
 	});
 
 	//Result
-	waves = ((waves.length) ? waves.reverse().join(", ") + " (" + waves.length + ")" : "aucune");
-	perished = ((perished.length) ? perished.reverse().join(", ") : "jamais");
+	waves = ((waves.length) ? waves.reverse().join(", ") + " (" + waves.length + ")." : "aucune.");
+	perished = ((perished.length) ? perished.reverse().join(", ") + "." : "jamais.");
 	if (defaced.length) {
 		for (var i = 0; i < defaced.length; i++) {
 			defaced[i] = defaced[i][1] + " (" + defaced[i][0] + ")";
 		}
-		defaced = defaced.reverse().join(", ");
+		defaced = defaced.reverse().join(", ") + ".";
 	}
 	else {
-		defaced = "aucune";
+		defaced = "aucune.";
 	}
 	$('<div>').html("<b>Vagues de hunters :</b> " + waves).appendTo(shipDiv);
 	$('<div>').html("<b>Destruction des rations périmées :</b> " + perished).appendTo(shipDiv);
@@ -465,6 +529,7 @@ function evaluateSin(qualif) {
 }
 
 function start() {
+	console.log('starting FDScript');
 	var currentShip = -1;
 	var previousChun, currChun = "";
 	var displayedShip = 0;
@@ -496,7 +561,7 @@ function start() {
 		var names = ["", "Mush", "Pourrissage", "Incitation", "Langage", "Autres"];
 		var sanctions = [[], [], [], [], [], []]; //Categories
 		select.find('option').each(function() {
-			sanctions[evaluateSin($(this).text())].push([$(this).text().trim(), $(this).attr('data-id')]); //Nom et data-id
+			sanctions[evaluateSin($(this).text())].push([$(this).text().trim(), $(this).attr('data-id')]); //Name and data-id
 			$(this).remove();
 		});
 		for (var i = 0; i < sanctions.length; i++) {
@@ -519,7 +584,6 @@ function start() {
 				var parent = select;
 			}
 			for (var j = 0; j < sanctions[i].length; j++) {
-				console.log(sanctions[i][j][0]);
 				$('<option>').text(sanctions[i][j][0]).attr('data-id', sanctions[i][j][1]).appendTo(parent);
 			}
 		}
@@ -554,8 +618,34 @@ function start() {
 
 	//Navigation buttons (initially hidden)
 	var buttonsDiv = $('<div>').hide().prependTo($('.fds_big_judge'));
+
+	//Logs height parameter
+	var logsHeight = localStorage['FDScript-logsHeight'];
+	if (logsHeight == undefined) {
+		logsHeight = 230;
+	}
+	var paramsDiv = $('<div>').insertBefore(buttonsDiv);
+	$('<label>').attr('for', 'FDScript-logsHeight').text("Hauteur des fenêtres de logs : ").appendTo(paramsDiv);
+	$('<input>').attr({
+		type: 'number', min: 10, value: logsHeight, name: 'FDScript-logsHeight'
+	}).css({
+		color: 'black', width: '5em'
+	}).appendTo(paramsDiv).on('change', function() {
+		var logsHeight = $(this).val();
+		$('style:contains("logsHeight")').remove();
+		addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div, .FDScript-mushChannel { max-height: " + logsHeight + "px !important; } /*logsHeight*/");
+		localStorage['FDScript-logsHeight'] = logsHeight;
+		if (logsHeight == '42') {
+			$('#FDScript-easterEgg').show();
+		}
+		else {
+			$('#FDScript-easterEgg').hide();
+		}
+	});;
+	paramsDiv.append("px");
+	$('<div>').html("Ô blas bougriot glabouilleux,<br />Tes micturations me touchent<br />Comme des flatouillis slictueux<br />Sur une blotte mouche<br />Grubeux, je t'implore<br />Car mes fontins s'empalindroment…<br />Et surrénalement me sporent<br />De croinçantes épiquarômes.<br />Ou sinon… nous t'échierons dans les gobinapes :<br />Du fond de notre patafion,<br />Tu verras si j'en suis pas cap !").attr('id', 'FDScript-easterEgg').hide().appendTo($('.readmore'));
 	
-	/* Some vars are declared to use them later, don't reduce */
+	/* Some vars are declared to be used later, keep them */
 	//Ship-by-ship controls
 	var viewDiv = $('<div>').insertBefore(buttonsDiv);
 	var viewCheck = $('<input>').attr({ type: 'checkbox', id: 'viewBox' }).appendTo(viewDiv);
@@ -609,7 +699,7 @@ function start() {
 			buttonsDiv.hide();
 		}
 	});
-	
+
 	//Alt checkbox function
 	altCheck.on('change', function() {
 		if (this.checked) {
@@ -674,10 +764,10 @@ function start() {
 		});
 
 		//Ship logs analysis
+		var shipDiv = $('<div>').css({ margin: '5px 0', padding: '5px 0', borderBottom: '2px dotted red' }).prependTo($(this));
 		$('<button>').text("Analyse des logs généraux").addClass('butbg checkDiv').css('font-size', '0.9em !important').attr('data-ship-id', shipId).prependTo($(this)).on('click', function() {
 			$(this).prop('disabled', true);
 			var id = $(this).attr('data-ship-id');
-			var shipDiv = $('<div>').css({ margin: '5px 0', padding: '5px 0', borderBottom: '2px dotted red' }).insertAfter($(this));
 
 			//Load logs
 			if (!generalLogs.hasOwnProperty(id)) {
@@ -696,77 +786,147 @@ function start() {
 			}
 		});
 	});
-}
+	
+	//Player logs analysis
+	setInterval(function() {
+		//Expedition links in new tab
+		$('.ui-dialog a[href]').attr('target', '_blank');
 
-//Player logs analysis
-setInterval(function() {
-	var logs = $('.ui-dialog:visible .fdsStory:not(.cdShipLog):not(.cdWalls):not(.scripted)');
-	if (logs.length) {
-		$('[onclick*="slideDown"]').attr('onclick', '$(this).parent().next().slideToggle(); return false;'); //Bugfix
-		logs.addClass('scripted');
-		var topDiv = $('<div>').insertBefore(logs);
+		//Scrollable mush channel
+		var mush = $('.ui-dialog-content:not(.FDScript-mushChannel) > li');
+		if (mush.length) {
+			mush.parent().addClass('FDScript-mushChannel');
+		}
 
-		$('<button>').text("Analyse des logs").addClass('butbg checkDiv').appendTo(topDiv).on('click', function() {
-			$(this).prop('disabled', true);
-			var skills = [];
+		//Personal logs
+		var logs = $('.ui-dialog:visible .fdsStory:not(.cdShipLog):not(.cdWalls):not(.scripted)');
+		if (logs.length) {
+			$('[onclick*="slideDown"]').attr('onclick', '$(this).parent().next().slideToggle(); return false;'); //Bugfix
+			logs.addClass('scripted');
+			var topDiv = $('<div>').insertBefore(logs);
 
-			//Log by log analysis
-			logs.find('.cdUserlogs div div').each(function() {
-				//De-strong character name
-				$(this).html($(this).html().replace('<strong>' + currentChar + '</strong>', currentChar));
+			//Character logs analysis
+			$('<button>').text("Analyse des logs").addClass('butbg checkDiv').appendTo(topDiv).on('click', function() {
+				$(this).prop('disabled', true);
+				var skills = [];
 
-				//Highlight actions
-				highlightActions($(this));
+				//Log by log analysis
+				logs.find('.cdUserlogs div div').each(function() {
+					//De-strong character name
+					$(this).html($(this).html().replace('<strong>' + currentChar + '</strong>', currentChar));
 
-				//Skills
-				if (/\{Skill chosen : (.*)\}/.test($(this).text())) {
-					var skill = /([0-9]+\.[0-9]+)(?:.+)\{Skill chosen : (.*) as[a-z]*\}/.exec($(this).text());
-					skills.push(skill[2] + " (" + skill[1] + ")");
+					//Highlight actions
+					highlightActions($(this));
+
+					//Skills
+					if (/\{Skill chosen : (.*)\}/.test($(this).text())) {
+						var skill = /([0-9]+\.[0-9]+)(?:.+)\{Skill chosen : (.*) as[a-z]*\}/.exec($(this).text());
+						skills.push(skill[2] + " (" + skill[1] + ")");
+					}
+				});
+
+				//Skills result
+				skills = ((skills.length) ? skills.reverse().join(", ") : "aucune.");
+				$('<div>').text("Compétences : " + skills).css('font-size', '0.9em').appendTo(topDiv);
+			});
+
+			//Player map
+			$('<button>').text("Analyse des déplacements").addClass('butbg checkDiv').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
+				//Load ship logs
+				var allCharLogs = logs.find('.cdUserlogs div div').clone();
+				if (!generalLogs.hasOwnProperty(currentLogs)) {
+					$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
+					loadXMLDoc('http://' + document.domain + currentLogs, function(request) {
+						if (request.readyState == 4 && request.status == 200) {
+							generalLogs[currentLogs] = request.responseText;
+							console.log('fetched general logs from ' + currentLogs);
+							charMovements(allCharLogs);
+							$('[src*="/img/icons/ui/loading1.gif"]').remove();
+						}
+					}, []);
+				}
+				else {
+					charMovements(allCharLogs);
 				}
 			});
 
-			//Skills result
-			skills = ((skills.length) ? skills.reverse().join(", ") : "aucune.");
-			$('<div>').text("Compétences : " + skills).css('font-size', '0.9em').appendTo(topDiv);
-		});
+			//Divide private channels
+			var privates = logs.find('.cdPrivateChannels');
+			if (privates.length) {
+				$('<button>').text("Découpage des canaux privés").addClass('butbg checkDiv').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
+					var number = 0;
+					var members = [];
+					var index = 0;
+					var channels = [[]];
+					var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/;
 
-		//Player map
-		$('<button>').text("Analyse des déplacements").addClass('butbg checkDiv').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
-			//Load ship logs
-			var allCharLogs = logs.find('.cdUserlogs div div').clone();
-			if (!generalLogs.hasOwnProperty(currentLogs)) {
-				$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
-				loadXMLDoc('http://' + document.domain + currentLogs, function(request) {
-					if (request.readyState == 4 && request.status == 200) {
-						generalLogs[currentLogs] = request.responseText;
-						console.log('fetched general logs from ' + currentLogs);
-						charMovements(allCharLogs);
-						$('[src*="/img/icons/ui/loading1.gif"]').remove();
+					//Add channel members mugshots
+					function addMembers(log) {
+						for (var i = 0; i < members.length; i++) {
+							$('<img>').attr({
+								src: '/img/design/pixel.gif',
+								title: members[i]
+							}).css({
+								background: 'url("/img/art/char.png")',
+								width: '20px', height: '16px', overflow: 'hidden',
+							}).addClass('char ' + members[i].toLowerCase().replace(' ', '_')).appendTo(log);
+						}
 					}
-				}, []);
+
+					privates.find('> div > div').each(function() {
+						var text = $(this).text();
+						if (/a rejoint la discussion/.test(text)) {
+							number += 1;
+							members.push(charRegexp.exec(text)[0]);
+							addMembers($(this));
+						}
+						else if (/a quitté la discussion/.test(text)) {
+							number -= 1;
+							members.splice(members.indexOf(charRegexp.exec(text)[0]), 1);
+							addMembers($(this));
+						}
+						channels[index].push($(this));
+						if (!number) {
+							channels.push([]);
+							index += 1;
+						}
+					});
+					//Create a div for each channel
+					for (var i = 0; i < channels.length; i++) {
+						if (!channels[i].length) { //Last "channel" (empty)
+							continue;
+						}
+						var channel = $('<div>').css({ padding: '5px 0', margin: '5px 0', borderBottom: '2px dotted red' }).appendTo(privates.find('> div'));
+						$('<h3>').text("Canal n°" + (i + 1)).appendTo(channel);
+						for (var j = 0; j < channels[i].length; j++) {
+							channels[i][j].appendTo(channel);
+						}
+					}
+				});
 			}
-			else {
-				charMovements(allCharLogs);
-			}
-		});
-	}
-}, 250);
+		}
+	}, 100);
+}
 
 
-addGlobalStyle(".cdUserlogs > div { height: 230px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".cdPrivateChannels > div { height: 230px !important; \n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".fdsStory.cdWalls { height: 500px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".fdsStory.cdShipLog { height: 500px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".cdChannels { height: 500px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".text_pack.cdMissions { height: 230px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".text_pack.cdAnnounces { height: 230px !important;\n overflow: auto !important;\n position: relative !important; }");
-addGlobalStyle(".mushWall > div.cdDialog { height: 500px !important;\n overflow: auto !important;\n position: relative !important; }");
+//CSS in <head>
+var logsHeight = localStorage['FDScript-logsHeight'];
+if (logsHeight == undefined) {
+	logsHeight = 230;
+}
+addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdWalls, .cdShipLog, .cdChannels, .cdMissions, .cdAnnounces, .mushWall > div.cdDialog, .FDScript-mushChannel { overflow: auto !important;\n position: relative !important; }");
+addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div, .FDScript-mushChannel { max-height: " + logsHeight + "px !important; } /* logsHeight */");
+addGlobalStyle(".cdWalls, .cdShipLog, .cdChannels, .mushWall > div.cdDialog { height: 500px !important; }");
+addGlobalStyle(".cdChannels { font-size: 0.9em; }");
+addGlobalStyle(".cdChan:not(:last-of-type), .cdMissions ul:not(:last-of-type), .cdAnnounces ul:not(:last-of-type) { margin: 5px 0; padding: 5px 0; border-bottom: 2px dotted red; }");
 addGlobalStyle(".checkDiv { display: inline-block; font-size: 10pt !important; }");
 addGlobalStyle(".divSep { display: block;\n border-top-style: dotted;\n border-top-color: red;\n width: 700px; }");
-addGlobalStyle("svg path, svg rect { fill: #FFF; stroke: #000; }");
+addGlobalStyle("svg * { fill: #FFF; stroke: #000; }");
+addGlobalStyle("svg path.door { stroke: #11F; stroke-width: 2; }");
 addGlobalStyle("#FDScript-mapselected { fill: #FF0 !important; }");
 addGlobalStyle("#FDScript-roomselected { background-color: #83B; }");
 addGlobalStyle(".FDScript-room:hover { background-color: #94C; }");
+addGlobalStyle("#FDScript-popup strong { color: #F13; }");
 
 
 if ($('.pol2.fds_bloc').length) { //Moderators
