@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.2.12
+// @version  1.3
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
