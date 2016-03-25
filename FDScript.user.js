@@ -1,37 +1,61 @@
 ﻿// ==UserScript==
 // @name     FDScript
 // @include  http://mush.vg/fds*
-// @require  http://code.jquery.com/jquery-latest.js
-// @version  1.2.11
+// @include  http://mush.twinoid.com/fds*
+// @require  https://code.jquery.com/jquery-2.2.1.min.js
+// @version  1.2.12
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
-// @author   Lundi, LAbare
+// @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
 // ==/UserScript==
 
 /* TODO
- * sleep
- * get a life
+ * Sleep.
+ * Get a life.
 
  * DONE
- * HL salissures, se laver
- * HL: transfert, victime transfert, vaccin
- * compétences et cycle de prise
- * pas auto pour modos
- * analyse logs généraux : destruction des denrées, salles dialoguées, vagues de hunters, PILGRED
- * map déplacements et qui était dans la pièce à ce moment-là (par log d'entrée)
- * retri des sanction intra-catégorie
- * log perso dans fenêtre de base : pas rouge
- * liens expé _blank
- * popup déplacements déplaçable, redimensionnable & z-indexable
- * taille des fenêtres de log (paramétrable)
- * séparer canaux privés, annonces, missions
- * easter egg
+ * Personal logs analysis:
+   - Highlight: getting dirty, showers, becoming Mush, transfer (both sides), cured Mush, mutation, talkie pirating, taking skills (own skills, magebook and Apprentice), +some moral sources,
+   - List of skills and the cycle they were chosen,
+   - Character's name is not red anymore (too heavy).
+ * General logs analysis:
+   - Shrink sessions logs,
+   - Destruction of rations by NERON,
+   - Defaced rooms,
+   - Hunter waves,
+   - Mycoalarms ringing,
+   - PILGRED repair.
+ * Map of a character's movements:
+   - Separation by rooms,
+   - Includes room logs and personal logs,
+   - Tells who was already here,
+   - Popup is draggable, resizeable and z-indexable.
+   - New: More than one popup possible.
+   - Fix: Dead characters no longer considered present (see below).
+   - Fix: The script copy of the general logs has death announcements back to their right place.
+   - Fix: Corrupted data is reloaded (rare but easily detected).
+ * All private channels window:
+   - Char mugshots on joining/leaving,
+   - Sort by character(s) (OR/AND toggle),
+   - Cycles in italics for moar prettiness.
+ * Fix by-ship reports sorting.
+ * Separation of the different private channels (with mugshots), general announcements and missions.
+ * Sanctions are sorted by categories, and by number of points inside categories, +suicide grouped with negativity.
+ * Setting for auto height of logs.
+ * Expedition links open in a new tab.
+ * New: wall-reversing button.
+ * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship.
+ * English translation.
+ * Easter egg!
+ * Doesn't brew coffe (yet).
+ * May become self-aware, handle with care.
+ * May become suicidal if exposed to too many stupid reports in a short span.
  */
 
 
 var console = unsafeWindow.console;
 
-//Make your SVG dreams come true (credit: dascritch.net)
+//Make your SVG dreams come true (credits: dascritch.net)
 $.fn.extend({
 	appendSVG: function (name, attributes) {
 		var svg = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -46,51 +70,231 @@ $.fn.extend({
 	}
 }); 
 
+var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/;
 var generalLogs = {};
 var currentLogs;
-var currentChar = '';
-var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Planton', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
+var currentChar;
+
+if (document.domain == 'mush.vg') {
+	var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Planton', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
+
+	var TXT = {
+		//displayTreatment()
+		checkVaccinated: "en %1",
+		checkTransferred: "a transféré dans %1 en %2",
+		checkIsMush: "depuis %1",
+		checkStolen: "corps volé par %1 en %2",
+
+		//charMovements()
+		movementsAnalysisButton: "Analyse des déplacements",
+		movementsTitle: "Déplacements de %1",
+		presentChars: "Déjà présents : ",
+		nobodyPresent: "personne.",
+		charLogsTitle: "Logs personnels : ",
+		roomLogsTitle: "Logs de la pièce : ",
+
+		//generalAnalysis()
+		generalAnalysisButton: "Analyse des logs généraux",
+		noPILGRED: "non.",
+		noWaves: "aucune.",
+		noPerished: "jamais.",
+		noDefaced: "aucune.",
+		noAlarms: "aucune.",
+		noPsyDiseases: "aucun.",
+		psyDiseasesTitle: "<b>Logs de maladies psy :</b> ",
+		wavesTitle: "<b>Vagues de hunters :</b> ",
+		perishedTitle: "<b>Destruction des rations périmées :</b> ",
+		defacedTitle: "<b>Pièces dialoguées :</b> ",
+		alarmsTitle: "<b>Sonneries d'alarmes :</b> ",
+		PILGREDTitle: "<b>PILGRED réparé :</b> ",
+
+		//evaluateSin()
+		sinNothingReg: /Rien/,
+		sinMushReg: /Mush/,
+		sinGriefingReg: /Pourrissage|Suicide/,
+		sinEncourageReg: /Incitation/,
+		sinLanguageReg: /Langage/,
+		sins: ["", "Mush", "Pourrissage", "Incitation", "Langage", "Autres"],
+
+		//Misc.
+		reportsNumber: " : %1 plainte(s) dans %2 vaisseau(x).",
+		logsHeight: "Hauteur des fenêtres de logs : ",
+		easterEgg: "Ô blas bougriot glabouilleux,<br />Tes micturations me touchent<br />Comme des flatouillis slictueux<br />Sur une blotte mouche.<br />Grubeux, je t'implore<br />Car mes fontins s'empalindroment…<br />Et surrénalement me sporent<br />De croinçantes épiquarômes.<br />Ou sinon… nous t'échierons dans les gobinapes :<br />Du fond de notre patafion,<br />Tu verras si j'en suis pas cap !",
+		reverseWall: "Inverser le mur",
+		mushDayCycleReg: /^\s*Jour [0-9]+ Cycle [0-9]+\s*$/,
+		modsStart: "Lancer le script FDS",
+		modsHideMush: "Cacher/révéler les Mushs et les pseudos",
+		scriptVersion: "Version du FDScript : ",
+
+		//Reports sorting
+		shipSort: "Vue par vaisseau",
+		altSort: "Vue globale triée",
+		gamesSort: "Tri par nombre de parties",
+		gamesSortDown: "Tri par nombre de parties (desc.)",
+		gamesSortUp: "Tri par nombre de parties (asc.)",
+		gamesNumberReg: /Nb de Partie : (\d*)/,
+
+		//All private channels analysis
+		allChannelsAnalysisButton: "Analyse des canaux",
+		hideShowButton: "Tout cacher/montrer",
+		channelsOr: "OU",
+		channelsAnd: "ET",
+
+		//Private channels analysis
+		channelsAnalysisButton: "Découpage des canaux privés",
+		joinedChannelReg: /a rejoint la discussion/,
+		leftChannelReg: /a quitté la discussion/,
+		channelTitle: "Canal n°",
+		channelsAnalysisBug: "Un log manquant empêche le découpage correct des canaux privés. Désolé :/",
+
+		//Personal logs analysis
+		logsAnalysisButton: "Analyse des logs",
+		skillsTitle: "<b>Compétences :</b> ",
+		noSkills: "aucune.",
+	};
+}
+else {
+	var rooms = ['Bridge', 'Alpha Bay', 'Bravo Bay', 'Alpha Bay 2', 'Nexus', 'Medlab', 'Laboratory', 'Refectory', 'Hydroponic Garden', 'Engine Room', 'Front Alpha Turret', 'Centre Alpha Turret', 'Rear Alpha Turret', 'Front Bravo Turret', 'Centre Bravo Turret', 'Rear Bravo Turret', 'Patrol Ship Tomorrowland', 'Patrol Ship Olive Grove', 'Patrol Ship Yasmin', 'Patrol Ship Wolf', 'Patrol Ship E-Street', 'Patrol Ship Eponine', 'Patrol Ship Carpe Diem', 'Pasiphae', 'Front Corridor', 'Central Corridor', 'Rear Corridor', 'Planet', 'Icarus Bay', 'Alpha Dorm', 'Bravo Dorm', 'Front Storage', 'Centre Alpha Storage', 'Rear Alpha Storage', 'Centre Bravo Storage', 'Rear Bravo Storage', 'Outer Space', 'Limbo'];
+
+	var TXT = {
+		//displayTreatment()
+		checkVaccinated: "in %1",
+		checkTransferred: "transferred into %1 in %2",
+		checkIsMush: "since %1",
+		checkStolen: "body stolen by %1 in %2",
+
+		//charMovements()
+		movementsAnalysisButton: "Movements analysis",
+		movementsTitle: "%1's movements",
+		presentChars: "Already there: ",
+		nobodyPresent: "nobody.",
+		charLogsTitle: "Personal logs: ",
+		roomLogsTitle: "Room logs: ",
+
+		//generalAnalysis()
+		generalAnalysisButton: "General logs analysis",
+		noPILGRED: "no.",
+		noWaves: "none.",
+		noPerished: "never.",
+		noDefaced: "none.",
+		noAlarms: "none.",
+		noPsyDiseases: "none.",
+		psyDiseasesTitle: "<b>Psy illnesses logs:</b> ",
+		wavesTitle: "<b>Hunter waves:</b> ",
+		perishedTitle: "<b>Perished food destructions:</b> ",
+		defacedTitle: "<b>Defaced rooms:</b> ",
+		alarmsTitle: "<b>Mycoalarms ringing:</b> ",
+		PILGREDTitle: "<b>PILGRED repaired:</b> ",
+
+		//evaluateSin()
+		sinNothingReg: /Rien/,
+		sinMushReg: /Mush/,
+		sinGriefingReg: /Negativity|Spoiling|Suicide/,
+		sinEncourageReg: /Incitation/,
+		sinLanguageReg: /Language|language|Langage/,
+		sins: ["", "Mush", "Negativity", "Incitation", "Language", "Others"],
+
+		//Misc.
+		reportsNumber: " : %1 report(s) in %2 ship(s).",
+		logsHeight: "Logs windows height: ",
+		easterEgg: "Oh freddled gruntbuggly,<br />Thy micturations are to me<br />As plurdled gabbleblotchits on a lurgid bee.<br />Groop, I implore thee, my foonting turlingdromes<br />And hooptiously drangle me with crinkly bindlewurdles,<br />Or I will rend thee in the gobberwarts<br />With my blurglecruncheon, see if I don't!",
+		reverseWall: "Reverse wall",
+		mushDayCycleReg: /^\s*Day [0-9]+ Cycle [0-9]+\s*$/,
+		modsStart: "Start SDF script",
+		modsHideMush: "Hide/show Mushs and pseudos",
+		scriptVersion: "FDScript version: ",
+
+		//Reports sorting
+		shipSort: "Sort by ship",
+		altSort: "One at a time",
+		gamesSort: "Sort by number of games",
+		gamesSortDown: "Sort by number of games (down)",
+		gamesSortUp: "Sort by number of games (up)",
+		gamesNumberReg: /Game number : (\d*)/,
+
+		//All private channels analysis
+		allChannelsAnalysisButton: "All channels analysis",
+		hideShowButton: "Hide/show all",
+		channelsOr: "OR",
+		channelsAnd: "AND",
+
+		//Private channels analysis
+		channelsAnalysisButton: "Channels analysis",
+		joinedChannelReg: /has joined discussion/,
+		leftChannelReg: /cannot be reached here/,
+		channelTitle: "Channel #",
+		channelsAnalysisBug: "A missing leaving log prevents a correct analysis, aborted. Sorry :/",
+
+		//Personal logs analysis
+		logsAnalysisButton: "Logs analysis",
+		skillsTitle: "<b>Skills:</b> ",
+		noSkills: "none.",
+	};
+}
 
 
 function addGlobalStyle(css) {
 	$('<style>').attr('type', 'text/css').html(css).appendTo($('head'));
 }
 
-function loadXMLDoc(url, callback, params) { //params is an array
+function loadXMLDoc(url, callback, params) { //params is an object
 	GM_xmlhttpRequest({
 		method: 'GET', url: url,
-		onload: function(response) {
-			callback(response, params);
+		onload: function(request) {
+			callback(request, params);
 		}
 	});
 }
 
+function fetchGeneralLogs(id, callback) {
+	loadXMLDoc('http://' + document.domain + id, function(request) {
+		if (request.readyState == 4 && request.status == 200) {
+			generalLogs[id] = $(request.responseText);
+			//Put death announcements in the right place (when they're not caused by cycle change, they can be misplaced several cycles after)
+			generalLogs[id].find('.cdShipLog span[onmouseover*="EV:NERON_HERO_DEATH"]').each(function() {
+				var div = $(this).prev();
+				var dateA = parseFloat(div.find('em').eq(0).text());
+				var dateB = parseFloat(div.next().find('em').eq(0).text());
+				if (dateA < dateB) { //If wrongly placed
+					var char = charRegexp.exec(div.html())[0];
+					div.insertBefore($('.cdShipLog span[onmouseover!="EV:NERON_HERO_DEATH"][onmouseover!="EV:CHAT"]:contains("' + char + '")').eq(0));
+				}
+			});
+			console.log('fetched & processed general logs from ' + id);
+			callback(request);
+		}
+	}, {});
+}
+
 function displayTreatment(request, params) {
-	var id = params[0];
 	if (request.readyState == 4 && request.status == 200) {
 		var textLog = request.responseText;
-		var icoDiv = $('<div>').addClass('checkDiv').insertBefore('[data-id="' + id + '"] .cdDate');
+		var icoDiv = $('<div>').addClass('inlineBut').insertBefore('[data-id="' + params.id + '"] .cdDate');
 
-		vaccinated = /<em>(.*)<\/em>.*\[EV:LEAVED_MUSH\]/.exec(textLog);
-		transferred = /<em>(.*)<\/em>.*\{TRANSFERED TO (.*)\}/.exec(textLog);
-		isMush = /<em>(.*)<\/em>.*\[EV:PARASITED_PASSIVE_TRIUMPH_EARNED\]/.exec(textLog);
-		stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
+		var vaccinated = /<em>(.*)<\/em>.*\[EV:LEAVED_MUSH\]/.exec(textLog);
+		var transferred = /<em>(.*)<\/em>.*\{TRANSFERED TO (.*)\}/.exec(textLog);
+		var isMush = /<em>(.*)<\/em>.*\[EV:PARASITED_PASSIVE_TRIUMPH_EARNED\]/.exec(textLog);
+		var stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
 
 		if (vaccinated) {
+			var text = TXT.checkVaccinated.replace('%1', vaccinated[1]);
 			$('<img>').attr('src', '/img/icons/ui/pa_heal.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text("en " + vaccinated[1]).appendTo(icoDiv);
+			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (transferred) {
+			var text = TXT.checkTransferred.replace('%1', transferred[2]).replace('%2', transferred[1]);
 			$('<img>').attr('src', '/img/icons/ui/pageright.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text("a transféré dans " + transferred[2] + " en " + transferred[1]).appendTo(icoDiv);
+			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (isMush) {
+			var text = TXT.checkIsMush.replace('%1', isMush[1]);
 			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text("depuis " + isMush[1]).appendTo(icoDiv);
+			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (stolen) {
+			var text = TXT.checkStolen.replace('%1', stolen[2]).replace('%2', stolen[1]);
 			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text("corps volé par " + stolen[2] + " en " + stolen[1]).appendTo(icoDiv);
+			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else {
 			$('<img>').attr('src', '/img/icons/ui/p_alive.png').appendTo(icoDiv);
@@ -103,56 +307,69 @@ function highlightActions(log) {
 		log.addClass('scripted');
 		var html = log.html();
 		//Highlight dirtification (normal log, extract a spore, vomit on yourself, target of massgeddon)
-		if (/\[EV:DIRTED\]|\[AC:CREATE_SPORE\]|\[EV:SYMPTOM_VOMIT\]|\[EV:AC_MASS_GGEDON_TGT\]/.test(html)) {
+		if (/EV:DIRTED|AC:CREATE_SPORE|EV:SYMPTOM_VOMIT|EV:AC_MASS_GGEDON_TGT/.test(html)) {
 			log.find('span').css('color', '#EA3').append($('<img>').attr('src', '/img/icons/ui/status/dirty.png').css('margin-left', '5px'));
 		}
 		//Highlight showers
-		else if (/\[AC:WASH_SELF\]/.test(html)) {
+		else if (/AC:WASH_SELF/.test(html)) {
 			log.find('span').css('color', '#7D3').append($('<img>').attr('src', '/img/icons/ui/status/germaphobic.png').css('margin-left', '5px'));
 		}
 
-		//Hightlight transfer (both sides), vaccination and mutation
-		else if (/\[EV:LEAVED_MUSH\]|{TRANSFERED TO (.*)\}|{WAS FORCED TO TRANSFER WITH (.*)\}|\[EV:HERO_MUTATED\]/.test(html)) {
+		//Hightlight conversion, transfer (both sides), vaccination and mutation
+		else if (/EV:PARASITED_PASSIVE_TRIUMPH_EARNED|EV:LEAVED_MUSH|\{TRANSFERED TO (.*)\}|\{WAS FORCED TO TRANSFER WITH (.*)\}|EV:HERO_MUTATED/.test(html)) {
 			log.find('span').css('color', '#F3C');
 		}
 
-		//Highlight talkie pirate
+		//Highlight talkie pirating
 		else if (/HAD HIS TALKY PIRATED|HAD PIRATED (.*) TALKY/.test(html)) {
 			log.find('span').css('color', '#F3C').append($('<img>').attr('src', '/img/icons/ui/talkie.png').css('margin-left', '5px'));
+		}
+
+		//Highlight skills
+		else if (/AC:LEARN|\{Skill chosen : (.*) as[a-z]*\}/.test(html)) {
+			log.find('span').css('color', '#F13').append($('<img>').attr('src', '/img/icons/ui/learned.png').css('margin-left', '5px'));
+		}
+
+		//Highlight some moral sources: caressing the cat, doing The Thing, chatting with Andie
+		else if (/AC:CARESS|AC:DO_THE_THING|AC:CHITCHAT/.test(html)) {
+			log.find('span').css('color', '#FD0').append($('<img>').attr('src', '/img/icons/ui/moral.png').css('margin-left', '5px'));
 		}
 	}
 	return log;
 }
 
-function charMovements(allCharLogs) {
-	var logs = $($(generalLogs[currentLogs]).find('> div > div > div').get().reverse()); //We only need the logs, from start to end
+function charMovements(allCharLogs, thisChar, thisLogs) {
+	var logs = $(generalLogs[thisLogs].find('> div > div > div').get().reverse()); //We only need the logs, from start to end
 	allCharLogs = $(allCharLogs.get().reverse());
 	var allCharLogsLength = allCharLogs.length;
-	var logsLength = logs.length;
 
-	//Numerous variables
-	var recordRoom = true;
+	//Numerous variables T_T
 	var charIndex = 0;
 	var logsIndex = -1
-	var sortedLogs = [];
-	var lastEntry = [];
-	var movements = [];
+	var sortedLogs = []; //Array of objects { room: "", charLogs: [], roomLogs: [], beforeLogs: [] }, result of the tracking process
+	var lastEntry = {};
+	var movements = []; //Array of all rooms the char went through
 	var positions = { 'Jin Su': null, Frieda: null, 'Kuan Ti': null, Janice: null, Roland: null, Hua: null, Paola: null, Chao: null, Finola: null, Stephen: null, Ian: null, Chun: null, Raluca: null, Gioele: null, Eleesha: null, Terrence: null, Derek: null, Andie: null };
-	var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/;
 
+	var continueTracking = true;
 	logs.each(function() {
 		//De-strong character name
-		$(this).html($(this).html().replace('<strong>' + currentChar + '</strong>', currentChar));
 		var html = $(this).html().replace('&amp;eacute;', 'é');
 
-		//Detect current player death in general logs (has no room, so before room test)
-		if (/EV:NERON_HERO_DEATH|EV:OXY_LOW_DAMMIT/.test(html) && charRegexp.exec(html)[0] == currentChar) {
-			sortedLogs[logsIndex].roomLogs.push($(this));
-			recordRoom = false;
-			return true; //jQuery: non-false return = continue
+		//Detect deaths (if current char, the log has no room, so check it before room test)
+		if (/EV:NERON_HERO_DEATH|EV:OXY_LOW_DAMMIT/.test(html)) { //Oxygen deaths are somehow different…
+			var char = charRegexp.exec(html)[0];
+			if (char == thisChar) {
+				sortedLogs[logsIndex].roomLogs.push($(this).clone()); //Push death log
+				return false; //End tracking
+			}
+			else {
+				positions[char] = null;
+				return true; //jQuery.each(): non-false return = continue
+			}
 		}
 
-		//If no room is assigned to the log, it can't be used
+		//Room detection; if no room is assigned to the log, it can't be used
 		var room = /\[ROOM:([^\]]+)\]/.exec(html);
 		if (room) {
 			room = room[1];
@@ -160,41 +377,51 @@ function charMovements(allCharLogs) {
 		else {
 			return true;
 		}
+		$(this).html($(this).html().replace('<strong>' + thisChar + '</strong>', thisChar));
 
 		//Detect movements
 		if (/EV:NEW_CREW_MEMBER|EV:CHARACTER_ENTERED/.test(html)) {
 			var char = charRegexp.exec(html)[0];
 			positions[char] = room;
-			//Remove last entry log of this character
-			for (var j = 0; j < lastEntry.length; j++) {
-				if (lastEntry[j].char == char) {
-					lastEntry.splice(j, 1);
-				}
-			}
-			if (char != currentChar) {
-				lastEntry.push({ char: char, date: /[0-9]+\.[0-9]+/.exec(html)[0] });
+			//Update last entry
+			if (char != thisChar) {
+				lastEntry[char] = { char: char, date: /[0-9]+\.[0-9]+/.exec(html)[0] };
 			}
 
 			//Entry of current character
-			if (char == currentChar) {
+			if (char == thisChar) {
+				if (/EV:CHARACTER_ENTERED/.test(html)) {
+					sortedLogs[logsIndex].roomLogs.push($(this).prev().clone()); //Exit log, which is not in the right order (and somehow it's prev, not next)
+				}
 				logsIndex += 1;
+				//New room = new object
 				sortedLogs.push({ room: room, charLogs: [], roomLogs: [], beforeLogs: [] });
 				movements.push('<em>' + /[0-9]+\.[0-9]+/.exec(html)[0] + '</em> ' + room);
 
 				//People who entered the room before
-				for (var j = 0; j < lastEntry.length; j++) {
-					if (positions[lastEntry[j].char] == positions[currentChar]) {
-						sortedLogs[logsIndex].beforeLogs.push(lastEntry[j]);
+				for (key in lastEntry) {
+					if (positions[key] == positions[thisChar]) {
+						sortedLogs[logsIndex].beforeLogs.push(lastEntry[key]);
 					}
 				}
 
+				//Corrupted data: erase and retry
+				if (/\[ROOM:([^\]]+)\]/.exec(allCharLogs.eq(charIndex).html())[1].replace('&amp;eacute;', 'é') != room) {
+					generalLogs[thisLogs] = null;
+					fetchGeneralLogs(thisLogs, function() {
+						charMovements(allCharLogs, thisChar, thisLogs);
+					});
+					continueTracking = false;
+					return false;
+				}
+
 				//Add all char logs of this room
-				sortedLogs[logsIndex].charLogs.push(allCharLogs.eq(charIndex)); //Entry log
+				sortedLogs[logsIndex].charLogs.push(allCharLogs.eq(charIndex).clone()); //Entry log
 				charIndex += 1;
 				while (!/EV:CHARACTER_ENTERED/.test(allCharLogs.eq(charIndex).html())) {
 					var charLog = allCharLogs.eq(charIndex);
-					charLog.html(charLog.html().replace('<strong>' + currentChar + '</strong>', currentChar));
-					sortedLogs[logsIndex].charLogs.push(charLog);
+					charLog.html(charLog.html().replace('<strong>' + thisChar + '</strong>', thisChar));
+					sortedLogs[logsIndex].charLogs.push(charLog.clone());
 					charIndex += 1;
 					if (charIndex == allCharLogsLength) {
 						break;
@@ -204,26 +431,23 @@ function charMovements(allCharLogs) {
 		}
 
 		//Room logs
-		if (recordRoom && room == positions[currentChar]) {
-			sortedLogs[logsIndex].roomLogs.push($(this));
+		if (room == positions[thisChar]) {
+			sortedLogs[logsIndex].roomLogs.push($(this).clone());
 		}
 	});
+	if (!continueTracking) { //If data was corrupted
+		return false;
+	}
 
 	//Result popup
-	var popup = $('#FDScript-popup');
-	if (!popup.length) {
-		popup = $('<div>').attr('id', 'FDScript-popup').css({
-			position: 'absolute', top: (window.scrollY + 50) + 'px', left: Math.round((window.innerWidth - 800) / 2) + 'px', zIndex: '1500',
-			boxSizing: 'border-box', width: '800px', padding: '10px 10px',
-			resize: 'both', overflow: 'auto',
-			boxShadow: '#000 5px 5px 10px',
-			border: '2px #000440 solid', borderRadius: '5px',
-			backgroundColor: '#338'
-		}).appendTo($('body'));
-	}
-	else {
-		popup.empty();
-	}
+	var popup = $('<div>').addClass('FDScript-popup').css({
+		position: 'absolute', top: (window.scrollY + 50) + 'px', left: Math.round((window.innerWidth - 800) / 2) + 'px', zIndex: '1500',
+		boxSizing: 'border-box', width: '800px', padding: '10px 10px',
+		resize: 'both', overflow: 'auto',
+		boxShadow: '#000 5px 5px 10px',
+		border: '2px #000440 solid', borderRadius: '5px',
+		backgroundColor: '#338'
+	}).appendTo($('body'));
 	$('<img>').css({ position: 'absolute', bottom: 0, right: 0 }).attr({
 		src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AIVEy040d+6twAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAXklEQVQoz2NgoCXQbvgiodP05z8DAwMDE7EaGJk4nv//90OSgYGBgZEUDVcbeF4Q1IRNA17noWsg6CdsGvD6CZ8GrH4iRgOK8whpwPATMRqQ/cTEwMDAgOFmAnyyAADp4pEx3U4jiAAAAABJRU5ErkJggg=='
 	}).appendTo(popup);
@@ -238,15 +462,22 @@ function charMovements(allCharLogs) {
 
 	//Title
 	var titleDiv = $('<div>').css({ cursor: 'move', fontSize: '0.9em', textAlign: 'center' }).appendTo(popup);
-	$('<button>').text("↓").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() { $('#FDScript-popup').css('z-index', '-=1'); });
-	$('<button>').text("↑").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() { $('#FDScript-popup').css('z-index', '+=1'); });
-	var title = $('<h2>').text("Déplacements de " + currentChar).css('user-select', 'none').appendTo(titleDiv);
-	$('<button>').text("X").addClass('butbg').css({ position: 'absolute', top: '5px', right: '5px' }).appendTo(titleDiv).on('click', function() { $('#FDScript-popup').remove(); });
+	$('<button>').text("↓").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() {
+		$(this).closest('.FDScript-popup').css('z-index', '-=1');
+	});
+	$('<button>').text("↑").addClass('butbg').css('float', 'left').appendTo(titleDiv).on('click', function() {
+		$(this).closest('.FDScript-popup').css('z-index', '+=1');
+	});
+	var title = $('<h2>').text(TXT.movementsTitle.replace('%1', thisChar)).css('user-select', 'none').appendTo(titleDiv);
+	$('<button>').text("X").addClass('butbg').css({ position: 'absolute', top: '5px', right: '5px' }).appendTo(titleDiv).on('click', function() {
+		$(this).closest('.FDScript-popup').remove();
+	});
 
 	//Draggable popup
 	var evX = null;
 	var evY = null;
 	var moving = false;
+	var target = null;
 	title.on('mousedown', function() {
 		moving = true;
 		var zIndex = 1000;
@@ -256,20 +487,21 @@ function charMovements(allCharLogs) {
 				zIndex = z;
 			}
 		});
-		$('#FDScript-popup').css('z-index', zIndex + 1);
-    }).on('mouseup', function() {
+		target = $(this).closest('.FDScript-popup');
+		target.css('z-index', zIndex + 1);
+    });
+	$('body').on('mouseup', function() {
 		moving = false;
 		evX = null;
 		evY = null;
-    });
-	$('body').on('mousemove', function(event) {
+		target = null;
+    }).on('mousemove', function(event) {
 		if (moving) {
 			if (evX == null) {
 				evX = event.pageX;
 				evY = event.pageY;
 			}
 			else {
-				var target = $('#FDScript-popup');
 				var relX = event.pageX - evX;
 				var relY = event.pageY - evY;
 				var offset = target.offset();
@@ -304,7 +536,7 @@ function charMovements(allCharLogs) {
 			svg.appendSVG('rect', { width: r[0], height: r[1], x: r[2], y: r[3], 'data-maproom': i });
 		}
 	}
-	$('[data-maproom="6"]').attr('id', 'FDScript-mapselected');
+	$('[data-maproom="6"]').addClass('FDScript-mapselected');
 	//SVG doors
 	for (var i = 0; i < svgDoors.length; i++) {
 		var d = svgDoors[i];
@@ -315,94 +547,94 @@ function charMovements(allCharLogs) {
 	var pathDiv = $('<div>').css({ maxHeight: '380px', marginTop: '15px', overflowY: 'auto', position: 'relative', fontSize: '0.9em' }).appendTo(left); //'relative' for position() & scroll
 	for (var i = 0; i < movements.length; i++) {
 		$('<div>').addClass('FDScript-room').css('cursor', 'pointer').html(movements[i]).attr('data-index', i).appendTo(pathDiv).on('click', function() {
-			$('#FDScript-roomselected').attr('id', '');
-			$(this).attr('id', 'FDScript-roomselected');
+			popup.find('.FDScript-roomselected').removeClass('FDScript-roomselected');
+			$(this).addClass('FDScript-roomselected');
 
 			var index = parseInt($(this).attr('data-index'));
-			$('.FDScript-logsPack').hide();
-			var newPack = $('.FDScript-logsPack[data-index="' + index + '"]');
+			popup.find('.FDScript-logsPack').hide();
+			var newPack = popup.find('.FDScript-logsPack[data-index="' + index + '"]');
 			newPack.show();
 
 			//topDiv
-			$('#FDScript-titleRoom').html(movements[index]);
-			$('#FDScript-prevRoom').css('visibility', 'visible');
-			$('#FDScript-nextRoom').css('visibility', 'visible');
+			popup.find('.FDScript-titleRoom').html(movements[index]);
+			popup.find('.FDScript-prevRoom').css('visibility', 'visible');
+			popup.find('.FDScript-nextRoom').css('visibility', 'visible');
 			if (!newPack.prev().length) { //First room
-				$('#FDScript-prevRoom').css('visibility', 'hidden');
+				popup.find('.FDScript-prevRoom').css('visibility', 'hidden');
 			}
 			if (!newPack.next().length) { //Last room
-				$('#FDScript-nextRoom').css('visibility', 'hidden');
+				popup.find('.FDScript-nextRoom').css('visibility', 'hidden');
 			}
 
 			//Map
-			$('#FDScript-mapselected').attr('id', '');
-			$('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').attr('id', 'FDScript-mapselected');
+			popup.find('.FDScript-mapselected').removeClass('FDScript-mapselected');
+			popup.find('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').addClass('FDScript-mapselected');
 		});
 	}
-	$('.FDScript-room[data-index="0"]').attr('id', 'FDScript-roomselected');
+	popup.find('.FDScript-room[data-index="0"]').addClass('FDScript-roomselected');
 
 	//Navigation
 	var topDiv = $('<div>').css('text-align', 'center').appendTo(right);
-	$('<button>').addClass('butbg checkDiv').text("←").attr('id', 'FDScript-prevRoom').css('visibility', 'hidden').appendTo(topDiv).on('click', function() {
+	$('<button>').addClass('butbg inlineBut').text("←").addClass('FDScript-prevRoom').css('visibility', 'hidden').appendTo(topDiv).on('click', function() {
 		//Previous logs pack
-		var currPack = $('.FDScript-logsPack:visible');
+		var currPack = popup.find('.FDScript-logsPack:visible');
 		var newPack = currPack.prev();
 		currPack.hide();
 		newPack.show();
 
 		//Rooms
-		$('#FDScript-roomselected').attr('id', '');
-		$('.FDScript-room[data-index="' + newPack.attr('data-index') + '"]').attr('id', 'FDScript-roomselected');
-		$('#FDScript-roomselected').parent().scrollTop(0); //Reset
-		var scroll = $('#FDScript-roomselected').position().top - 200;
+		popup.find('.FDScript-roomselected').removeClass('FDScript-roomselected');
+		popup.find('.FDScript-room[data-index="' + newPack.attr('data-index') + '"]').addClass('FDScript-roomselected');
+		popup.find('.FDScript-roomselected').parent().scrollTop(0); //Reset
+		var scroll = popup.find('.FDScript-roomselected').position().top - 200;
 		if (scroll < 0) {
 			scroll = 0;
 		}
-		$('#FDScript-roomselected').parent().scrollTop(scroll);
+		popup.find('.FDScript-roomselected').parent().scrollTop(scroll);
 
 		//topDiv
 		if (!newPack.prev().length) { //First room
 			$(this).css('visibility', 'hidden');
 		}
-		$('#FDScript-nextRoom').css('visibility', 'visible');
-		$('#FDScript-titleRoom').html(movements[parseInt(newPack.attr('data-index'))]);
+		popup.find('.FDScript-nextRoom').css('visibility', 'visible');
+		popup.find('.FDScript-titleRoom').html(movements[parseInt(newPack.attr('data-index'))]);
 
 		//Map
-		$('#FDScript-mapselected').attr('id', '');
-		$('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').attr('id', 'FDScript-mapselected');
+		popup.find('.FDScript-mapselected').removeClass('FDScript-mapselected');
+		popup.find('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').addClass('FDScript-mapselected');
 	});
-	$('<span>').html(movements[0]).css({ width: '250px', display: 'inline-block' }).attr('id', 'FDScript-titleRoom').appendTo(topDiv);
-	$('<button>').addClass('butbg checkDiv').text("→").attr('id', 'FDScript-nextRoom').appendTo(topDiv).on('click', function() {
+	$('<span>').html(movements[0]).css({ width: '250px', display: 'inline-block' }).addClass('FDScript-titleRoom').appendTo(topDiv);
+	$('<button>').addClass('butbg inlineBut').text("→").addClass('FDScript-nextRoom').appendTo(topDiv).on('click', function() {
 		//Next logs pack
-		var currPack = $('.FDScript-logsPack:visible');
+		var currPack = popup.find('.FDScript-logsPack:visible');
 		var newPack = currPack.next();
 		currPack.hide();
 		newPack.show();
 
 		//Rooms
-		$('#FDScript-roomselected').attr('id', '');
-		$('.FDScript-room[data-index="' + newPack.attr('data-index') + '"]').attr('id', 'FDScript-roomselected');
-		$('#FDScript-roomselected').parent().scrollTop(0); //Reset
-		var scroll = $('#FDScript-roomselected').position().top - 200;
+		popup.find('.FDScript-roomselected').removeClass('FDScript-roomselected');
+		popup.find('.FDScript-room[data-index="' + newPack.attr('data-index') + '"]').addClass('FDScript-roomselected');
+		popup.find('.FDScript-roomselected').parent().scrollTop(0); //Reset
+		var scroll = popup.find('.FDScript-roomselected').position().top - 200;
 		if (scroll < 0) {
 			scroll = 0;
 		}
-		$('#FDScript-roomselected').parent().scrollTop(scroll);
+		popup.find('.FDScript-roomselected').parent().scrollTop(scroll);
 
 		//topDiv
 		if (!newPack.next().length) { //Last room
 			$(this).css('visibility', 'hidden');
 		}
-		$('#FDScript-prevRoom').css('visibility', 'visible');
-		$('#FDScript-titleRoom').html(movements[parseInt(newPack.attr('data-index'))]);
+		popup.find('.FDScript-prevRoom').css('visibility', 'visible');
+		popup.find('.FDScript-titleRoom').html(movements[parseInt(newPack.attr('data-index'))]);
 
 		//Map
-		$('#FDScript-mapselected').attr('id', '');
-		$('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').attr('id', 'FDScript-mapselected');
+		popup.find('.FDScript-mapselected').removeClass('FDScript-mapselected');
+		popup.find('[data-maproom="' + rooms.indexOf(newPack.attr('data-room')) + '"]').addClass('FDScript-mapselected');
 	});
 	//Inactive in lab = no next movement
 	if (movements.length == 1) {
-		$('#FDScript-nextRoom').css('visibility', 'hidden');
+		popup.find('.FDScript-nextRoom').css('visibility', 'hidden');
 	}
 
 	//Logs packs
@@ -415,12 +647,12 @@ function charMovements(allCharLogs) {
 			overflowY: 'auto',
 			fontSize: '0.8em'
 		}).appendTo(packsDiv);
-		if (i != 0) {
+		if (i != 0) { //Hide all but the first
 			pack.hide();
 		}
 
 		//People already in the room
-		var befDiv = $('<div>').text("Déjà présents : ").css('margin-top', '10px').appendTo(pack);
+		var befDiv = $('<div>').text(TXT.presentChars).css('margin-top', '10px').appendTo(pack);
 		for (var j = 0; j < sortedLogs[i].beforeLogs.length; j++) {
 			$('<img>').attr({
 				src: '/img/design/pixel.gif',
@@ -433,11 +665,11 @@ function charMovements(allCharLogs) {
 			befDiv.append(sortedLogs[i].beforeLogs[j].date);
 		}
 		if (sortedLogs[i].beforeLogs.length == 0) {
-			befDiv.append("personne.");
+			befDiv.append(TXT.nobodyPresent);
 		}
 
 		//Char logs
-		$('<h3>').text("Logs personnels :").css('margin-top', '10px').appendTo(pack);
+		$('<h3>').text(TXT.charLogsTitle).css('margin-top', '10px').appendTo(pack);
 		var charDiv = $('<div>').css({ overflowY: 'auto', backgroundColor: '#17448E' }).appendTo(pack);
 		for (var j = 0; j < sortedLogs[i].charLogs.length; j++) {
 			var log = sortedLogs[i].charLogs[j];
@@ -446,7 +678,7 @@ function charMovements(allCharLogs) {
 		}
 
 		//Room logs
-		var roomLogsTitle = $('<h3>').text("Logs de la pièce : ").css('margin-top', '10px').appendTo(pack);
+		var roomLogsTitle = $('<h3>').text(TXT.roomLogsTitle).css('margin-top', '10px').appendTo(pack);
 		$('<a>').text("+-").appendTo(roomLogsTitle).css({
 			color: 'white', fontSize: '1.2em', textDecoration: 'underline', cursor: 'pointer'
 		}).on('click', function() { $(this).parent().next().slideToggle(); return false; });
@@ -466,18 +698,23 @@ function generalAnalysis(shipDiv, id) {
 	var defaced = [];
 	var perished = [];
 	var waves = [];
-	var PILGRED = "non.";
+	var alarms = [];
+	var shrink = {};
+	var PILGRED = TXT.noPILGRED;
 
-	$(generalLogs[id]).find('> div > div > div').each(function() {
+	generalLogs[id].find('> div > div > div').each(function() {
 		var html = $(this).html().replace('&amp;eacute;', 'é');
 		if (/EV:HUNTER_WAVE_INC/.test(html)) {
 			waves.push(/[0-9]+\.[0-9]+/.exec(html)[0]);
 		}
 		else if (/EV:RATION_PERISHED/.test(html)) {
-			date = /[0-9]+\.[0-9]+/.exec(html)[0];
+			var date = /[0-9]+\.[0-9]+/.exec(html)[0];
 			if (perished.indexOf(date) == -1) { //Avoid repetitions
 				perished.push(date);
 			}
+		}
+		else if (/EV:EVENT/.test(html) && /D+R+I+N+G+/.test(html)) {
+			alarms.push([/[0-9]+\.[0-9]+/.exec(html)[0], /\[ROOM:([^\]]+)\]/.exec(html)[1]]); //[date, room]
 		}
 		else if (/AC:DELOG/.test(html)) {
 			defaced.push([/[0-9]+\.[0-9]+/.exec(html)[0], /\[ROOM:([^\]]+)\]/.exec(html)[1]]); //[date, room]
@@ -485,11 +722,31 @@ function generalAnalysis(shipDiv, id) {
 		else if (/EV:PILGRED_DONE/.test(html)) {
 			PILGRED = /[0-9]+\.[0-9]+/.exec(html)[0] + ".";
 		}
+		else if (/EV:PSY_SESSION/.test(html)) {
+			var date = /[0-9]+\.[0-9]+/.exec(html)[0];
+			var charEx = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/g;
+			var charA = charEx.exec(html)[0];
+			var charB = charEx.exec(html)[0]; //A second call to exec() gets the next char
+
+			//Determine which char is being cured
+			if (/EV:PSY_SESSION_SUCCESS/.test(html)) {
+				var char = charA; //"X has been cured, Y is satisfied"
+			}
+			else {
+				var char = charB; //"Y is satisfied, X is being cured"
+			}
+
+			if (!shrink.hasOwnProperty(char)) {
+				shrink[char] = [];
+			}
+			shrink[char].push(date);
+		}
 	});
 
 	//Result
-	waves = ((waves.length) ? waves.reverse().join(", ") + " (" + waves.length + ")." : "aucune.");
-	perished = ((perished.length) ? perished.reverse().join(", ") + "." : "jamais.");
+	waves = ((waves.length) ? waves.reverse().join(", ") + " (" + waves.length + ")." : TXT.noWaves);
+	perished = ((perished.length) ? perished.reverse().join(", ") + "." : TXT.noPerished);
+
 	if (defaced.length) {
 		for (var i = 0; i < defaced.length; i++) {
 			defaced[i] = defaced[i][1] + " (" + defaced[i][0] + ")";
@@ -497,29 +754,54 @@ function generalAnalysis(shipDiv, id) {
 		defaced = defaced.reverse().join(", ") + ".";
 	}
 	else {
-		defaced = "aucune.";
+		defaced = TXT.noDefaced;
 	}
-	$('<div>').html("<b>Vagues de hunters :</b> " + waves).appendTo(shipDiv);
-	$('<div>').html("<b>Destruction des rations périmées :</b> " + perished).appendTo(shipDiv);
-	$('<div>').html("<b>Pièces dialoguées :</b> " + defaced).appendTo(shipDiv);
-	$('<div>').html("<b>PILGRED réparé :</b> " + PILGRED).appendTo(shipDiv);
+
+	if (alarms.length) {
+		for (var i = 0; i < alarms.length; i++) {
+			alarms[i] = alarms[i][1] + " (" + alarms[i][0] + ")";
+		}
+		alarms = alarms.reverse().join(", ") + ".";
+	}
+	else {
+		alarms = TXT.noAlarms;
+	}
+
+	var psyDiseases = [];
+	if (Object.keys(shrink).length) {
+		for (char in shrink) {
+			var charDiseases = char + " (" + shrink[char].reverse().join(", ") + ")";
+			psyDiseases.push(charDiseases);
+		}
+		psyDiseases = psyDiseases.join(", ") + ".";
+	}
+	else {
+		psyDiseases = TXT.noPsyDiseases;
+	}
+
+	$('<div>').html(TXT.psyDiseasesTitle + psyDiseases).appendTo(shipDiv);
+	$('<div>').html(TXT.wavesTitle + waves).appendTo(shipDiv);
+	$('<div>').html(TXT.perishedTitle + perished).appendTo(shipDiv);
+	$('<div>').html(TXT.defacedTitle + defaced).appendTo(shipDiv);
+	$('<div>').html(TXT.alarmsTitle + alarms).appendTo(shipDiv);
+	$('<div>').html(TXT.PILGREDTitle + PILGRED).appendTo(shipDiv);
 }
 
 function evaluateSin(qualif) {
 	var result;
-	if (/Rien/.test(qualif)) {
+	if (TXT.sinNothingReg.test(qualif)) {
 		result = 0;
 	}
-	else if (/Mush/.test(qualif)) {
+	else if (TXT.sinMushReg.test(qualif)) {
 		result = 1;
 	}
-	else if (/Pourrissage/.test(qualif)) {
+	else if (TXT.sinGriefingReg.test(qualif)) {
 		result = 2;
 	}
-	else if (/Incitation/.test(qualif)) {
+	else if (TXT.sinEncourageReg.test(qualif)) {
 		result = 3;
 	}
-	else if (/Langage/.test(qualif)) {
+	else if (TXT.sinLanguageReg.test(qualif)) {
 		result = 4;
 	}
 	else {
@@ -528,26 +810,34 @@ function evaluateSin(qualif) {
 	return result;
 }
 
+function addMembersToLog(members, log) {
+	for (var i = 0; i < members.length; i++) {
+		$('<img>').attr({
+			src: '/img/design/pixel.gif',
+			title: members[i]
+		}).css({
+			background: 'url("/img/art/char.png")',
+			width: '20px', height: '16px', overflow: 'hidden',
+		}).addClass('char ' + members[i].toLowerCase().replace(' ', '_')).appendTo(log);
+	}
+}
+
 function start() {
 	console.log('starting FDScript');
 	var currentShip = -1;
-	var previousChun, currChun = "";
-	var displayedShip = 0;
+	var ships = [];
+	var currShip = 0;
 
 	//Scan through all reports
 	$("div.fds_control_bloc.cdControl").each(function() {
 		var block = $(this);
-		var histoLink, currChun = '';
+		var histoLink = '';
 
 		//Get plaintee & Chun histoLink
 		var plainteeDiv = block.find('.inl-blck').eq(1);
 		block.find('.cdProof .fds_char_pack').each(function() {
-			var currChar = $(this).find('.fdsName').text();
-			if (currChar == plainteeDiv.find('.fdsName').text()) {
+			if ($(this).find('.fdsName').text() == plainteeDiv.find('.fdsName').text()) {
 				histoLink = $(this).find('a').attr('href');
-			}
-			else if (currChar.toLowerCase() == "chun") {
-				currChun = $(this).find('a').attr('href');
 			}
 		});
 
@@ -558,14 +848,13 @@ function start() {
 
 		//Sort judging options
 		var select = block.find('.judge_bloc select');
-		var names = ["", "Mush", "Pourrissage", "Incitation", "Langage", "Autres"];
 		var sanctions = [[], [], [], [], [], []]; //Categories
 		select.find('option').each(function() {
 			sanctions[evaluateSin($(this).text())].push([$(this).text().trim(), $(this).attr('data-id')]); //Name and data-id
 			$(this).remove();
 		});
 		for (var i = 0; i < sanctions.length; i++) {
-			if (i > 0) {
+			if (i > 0) { //Sanctions
 				//Sort by number of points
 				sanctions[i].sort(function(a, b) {
 					var aPoints = parseInt(/[0-9]+/.exec(a[0])[0]);
@@ -578,9 +867,9 @@ function start() {
 					}
 					return 0;
 				});
-				var parent = $('<optgroup>').attr('label', names[i]).appendTo(select);
+				var parent = $('<optgroup>').attr('label', TXT.sins[i]).appendTo(select);
 			}
-			else {
+			else { //"Nothing"
 				var parent = select;
 			}
 			for (var j = 0; j < sanctions[i].length; j++) {
@@ -592,29 +881,27 @@ function start() {
 		$('<input>').attr({
 			type: 'button', value: 'check', 'data-histolink': histoLink, 'data-block-id': block.attr('data-id')
 		}).addClass('butbg').on('click', function() {
-			loadXMLDoc($(this).attr('data-histolink'), displayTreatment, [$(this).attr('data-block-id')]);
+			loadXMLDoc($(this).attr('data-histolink'), displayTreatment, { id: $(this).attr('data-block-id') });
 			$(this).prop('disabled', true);
 		}).appendTo(plainteeDiv);
 
-
 		//Sort reports by ship
-		if (currChun == previousChun) { //Same ship than the previous report
-			block.parent().addClass('allships shipNum' + currentShip);
+		var id = /[0-9]+/.exec(block.find('a[href*="shipStory"]').attr('href'))[0];
+		block.parent().addClass('allships shipNum' + id);
+		if (ships.indexOf(id) == -1) {
+			ships.push(id);
 		}
-		else {
-			currentShip += 1;
-			block.parent().addClass('allships shipNum' + currentShip);
-			previousChun = currChun;
-			//Separator
-			$('<div>').addClass('divSep').hide().insertAfter(block.parent());
-		}
+
+		//Separator
+		$('<div>').addClass('divSep').hide().appendTo(block.parent());
 	});
 
 	//Fix displaying Mush channel
 	$('a [href*="mushLog"]').attr("onclick", "Main.ajaxPopup($(this).attr('href'), { width: '600px', dialogClass: 'mushWall' }); return false;");
 
 	//Display number of reports and ships
-	$('.fds_bloc').eq(2).find('h2').append(" : " + $("div.fds_control_bloc.cdControl").length + " plaintes dans " + (currentShip + 1) + " vaisseaux.");
+	var reportsNumber = TXT.reportsNumber.replace('%1', $("div.fds_control_bloc.cdControl").length).replace('%2', ships.length);
+	$('.fds_bloc').eq(2).find('h2').append(reportsNumber);
 
 	//Navigation buttons (initially hidden)
 	var buttonsDiv = $('<div>').hide().prependTo($('.fds_big_judge'));
@@ -622,10 +909,10 @@ function start() {
 	//Logs height parameter
 	var logsHeight = localStorage['FDScript-logsHeight'];
 	if (logsHeight == undefined) {
-		logsHeight = 230;
+		logsHeight = 270;
 	}
 	var paramsDiv = $('<div>').insertBefore(buttonsDiv);
-	$('<label>').attr('for', 'FDScript-logsHeight').text("Hauteur des fenêtres de logs : ").appendTo(paramsDiv);
+	$('<label>').attr('for', 'FDScript-logsHeight').text(TXT.logsHeight).appendTo(paramsDiv);
 	$('<input>').attr({
 		type: 'number', min: 10, value: logsHeight, name: 'FDScript-logsHeight'
 	}).css({
@@ -643,39 +930,39 @@ function start() {
 		}
 	});;
 	paramsDiv.append("px");
-	$('<div>').html("Ô blas bougriot glabouilleux,<br />Tes micturations me touchent<br />Comme des flatouillis slictueux<br />Sur une blotte mouche<br />Grubeux, je t'implore<br />Car mes fontins s'empalindroment…<br />Et surrénalement me sporent<br />De croinçantes épiquarômes.<br />Ou sinon… nous t'échierons dans les gobinapes :<br />Du fond de notre patafion,<br />Tu verras si j'en suis pas cap !").attr('id', 'FDScript-easterEgg').hide().appendTo($('.readmore'));
+	$('<div>').html(TXT.easterEgg).attr('id', 'FDScript-easterEgg').hide().appendTo($('.readmore'));
 	
 	/* Some vars are declared to be used later, keep them */
 	//Ship-by-ship controls
 	var viewDiv = $('<div>').insertBefore(buttonsDiv);
 	var viewCheck = $('<input>').attr({ type: 'checkbox', id: 'viewBox' }).appendTo(viewDiv);
-	$('<label>').text("Vue par vaisseau").appendTo(viewDiv);
+	$('<label>').text(TXT.shipSort).appendTo(viewDiv);
 
 	//One-by-one controls
 	var altDiv = $('<div>').insertBefore(buttonsDiv);
 	var altCheck = $('<input>').attr({ type: 'checkbox', id: 'altBox' }).appendTo(altDiv);
-	$('<label>').text("Vue globale triée").appendTo(altDiv);
+	$('<label>').text(TXT.altSort).appendTo(altDiv);
 
 	//Sort by game number
 	var sortDiv = $('<div>').insertBefore(buttonsDiv);
 	var sortCheck = $('<input>').attr({ type: 'checkbox', id: 'sortBox' }).appendTo(sortDiv);
-	var labSortCheck = $('<label>').text("Tri par nombre de parties (desc.)").appendTo(sortDiv);
+	var labSortCheck = $('<label>').text(TXT.gamesSort).appendTo(sortDiv);
 	
 	//Previous and next ship buttons
-	$('<button>').text('←').addClass('butbg checkDiv').on('click', function() {
-		if (displayedShip > 0) {
-			$('.shipNum' + displayedShip).hide();
+	$('<button>').text('←').addClass('butbg inlineBut').on('click', function() {
+		if (currShip > 0) {
+			$('.shipNum' + ships[currShip]).hide();
 			//Switch to previous ship
-			displayedShip -= 1;
-			$('.shipNum' + displayedShip).show();
+			currShip -= 1;
+			$('.shipNum' + ships[currShip]).show();
 		}
 	}).appendTo(buttonsDiv); //Previous
-	$('<button>').text('→').addClass('butbg checkDiv').on('click', function() {
-		if (displayedShip < currentShip) { //currentShip now equals the total number of ships
-			$('.shipNum' + displayedShip).hide();
+	$('<button>').text('→').addClass('butbg inlineBut').on('click', function() {
+		if (currShip < ships.length - 1) {
+			$('.shipNum' + ships[currShip]).hide();
 			//Switch to next ship
-			displayedShip += 1;
-			$('.shipNum' + displayedShip).show();
+			currShip += 1;
+			$('.shipNum' + ships[currShip]).show();
 		}
 	}).appendTo(buttonsDiv); //Next
 
@@ -684,7 +971,7 @@ function start() {
 		if (this.checked) {
 			//Hide all ships but the first
 			$('.allships').hide();
-			$('.shipNum' + displayedShip).show();
+			$('.shipNum' + ships[0]).show();
 
 			//Show buttons
 			buttonsDiv.show();
@@ -693,6 +980,7 @@ function start() {
 			if (altCheck.is(':checked')) {
 				altCheck.click();
 			}
+			labSortCheck.text(TXT.gamesSort);
 		}
 		else {
 			$('.allships').show();
@@ -719,19 +1007,19 @@ function start() {
 		if (this.checked) {
 			var greater = 1;
 			var lesser = -1; 
-			var sortText = "Tri par nombre de parties (asc.)";
+			var sortText = TXT.gamesSortUp;
 		}
 		else {
 			var greater = -1;
 			var lesser = 1;
-			var sortText = "Tri par nombre de parties (desc.)";
+			var sortText = TXT.gamesSortDown;
 		}
 
 		var reports = $("li.allships");
 		var mainUl = $("ul.fds_big_judge");
 		//Sort all reports
 		reports.sort(function(a, b) {
-			var pattGames = /Nb de Partie : (\d*)/;
+			var pattGames = TXT.gamesNumberReg;
 			var aGames = parseInt(pattGames.exec($(a).text())[1]);
 			var bGames = parseInt(pattGames.exec($(b).text())[1]);
 			if (aGames > bGames) {
@@ -742,8 +1030,7 @@ function start() {
 			}
 			return 0;
 		});
-		mainUl.find("li.allships").remove();
-		mainUl.append(reports);
+		reports.detach().appendTo(mainUl);
 		labSortCheck.text(sortText);
 
 		//De-check other inputs
@@ -765,21 +1052,17 @@ function start() {
 
 		//Ship logs analysis
 		var shipDiv = $('<div>').css({ margin: '5px 0', padding: '5px 0', borderBottom: '2px dotted red' }).prependTo($(this));
-		$('<button>').text("Analyse des logs généraux").addClass('butbg checkDiv').css('font-size', '0.9em !important').attr('data-ship-id', shipId).prependTo($(this)).on('click', function() {
+		$('<button>').text(TXT.generalAnalysisButton).addClass('butbg inlineBut').css('font-size', '0.9em !important').attr('data-ship-id', shipId).prependTo($(this)).on('click', function() {
 			$(this).prop('disabled', true);
 			var id = $(this).attr('data-ship-id');
 
 			//Load logs
 			if (!generalLogs.hasOwnProperty(id)) {
 				$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
-				loadXMLDoc('http://' + document.domain + id, function(request) {
-					if (request.readyState == 4 && request.status == 200) {
-						generalLogs[id] = request.responseText;
-						console.log('fetched general logs from ' + id);
-						generalAnalysis(shipDiv, id);
-						$('[src*="/img/icons/ui/loading1.gif"]').remove();
-					}
-				}, []);
+				fetchGeneralLogs(id, function() {
+					generalAnalysis(shipDiv, id);
+					$('[src*="/img/icons/ui/loading1.gif"]').remove();
+				});
 			}
 			else {
 				generalAnalysis(shipDiv, id);
@@ -789,21 +1072,141 @@ function start() {
 	
 	//Player logs analysis
 	setInterval(function() {
+		//Reverse wall (eventually)
+		var wall = $('.cdWalls:not(.scripted)');
+		if (wall.length) {
+			wall.addClass('scripted');
+			$('<button>').text(TXT.reverseWall).addClass('butbg inlineBut').appendTo(wall.closest('.ui-dialog').find('.ui-dialog-titlebar')).on('click', function() {
+				var title = wall.find('h3');
+				$('.cdWall').each(function() {
+					$(this).insertAfter(title);
+				});
+			});
+		}
+
 		//Expedition links in new tab
 		$('.ui-dialog a[href]').attr('target', '_blank');
 
 		//Scrollable mush channel + divide cycles
-		var mush = $('.ui-dialog-content:not(.FDScript-mushChannel) > li');
+		var mush = $('.ui-dialog-content:visible:not(.FDScript-mushChannel) > li');
 		if (mush.length) {
 			mush.parent().addClass('FDScript-mushChannel');
 			mush.each(function() {
 				//Cycle separation
-				if (/^\s*Jour [0-9]+ Cycle [0-9]+\s*$/.test($(this).text())) {
+				if (TXT.mushDayCycleReg.test($(this).text())) {
 					$(this).css({
 						marginBottom: '5px', paddingBottom: '5px', borderBottom: '2px dotted red',
 						textAlign: 'center', fontWeight: 'bold'
 					});
 				}
+			});
+		}
+
+		//All private channels
+		var allChannels = $('.cdChannels:visible:not(.FDScripted)');
+		if (allChannels.length) {
+			allChannels.addClass('FDScripted');
+			var titlebar = allChannels.closest('.ui-dialog').find('.ui-dialog-titlebar');
+			var chans = allChannels.find('.cdChan');
+			$('<button>').addClass('butbg inlineBut').text(TXT.allChannelsAnalysisButton).appendTo(titlebar).on('click', function() {
+				$(this).remove();
+				titlebar.addClass('FDScript-titlebar');
+				titlebar.find('.ui-dialog-title').remove();
+
+				//Channel members analysis
+				var allMembers = [];
+				chans.each(function() {
+					var chanMembers = [];
+					var members = [];
+					$(this).find('li').each(function() {
+						//Logs processing
+						if (!$(this).find('.fdsName').length) { //Don't process messages, only logs
+							$(this).contents().eq(0).each(function() { //Day.Cycle in italics
+								$(this).replaceWith( $('<em>').text($(this).text().trim()).css('margin-right', '3px') );
+							});
+							var text = $(this).text();
+							if (TXT.joinedChannelReg.test(text)) {
+								var name = charRegexp.exec(text)[0];
+								if (members.indexOf(name) == -1) {
+									members.push(name);
+									addMembersToLog(members, $(this));
+								}
+								if (chanMembers.indexOf(name) == -1) {
+									chanMembers.push(name);
+									$(this).closest('.cdChan').addClass('FDScript-' + name.toLowerCase().replace(' ', '_'));
+								}
+								if (allMembers.indexOf(name) == -1) {
+									allMembers.push(name);
+								}
+							}
+							else if (TXT.leftChannelReg.test(text)) {
+								members.splice(members.indexOf(charRegexp.exec(text)[0]), 1);
+								addMembersToLog(members, $(this));
+							}
+						}
+						//Day.Cycle next to char and in italics
+						else {
+							$(this).children('div').css('display', 'inline');
+							$(this).contents().eq(2).each(function() {
+								$(this).replaceWith( $('<em>').text($(this).text().trim()).css('margin-left', '10px') );
+							});
+						}
+					});
+				});
+
+				//Channel selection by char
+				function showCharChannels() {
+					chans.hide();
+					switch ($('[name="FDScript-charSel"]:visible:checked').val()) {
+						case 'and':
+							var chars = [];
+							$('.FDScript-channelChar:visible:not(.off)').each(function() {
+								chars.push('FDScript-' + $(this).attr('data-name'));
+							});
+							$('.cdChan.' + chars.join('.')).show();
+							break;
+						case 'or':
+						default:
+							$('.FDScript-channelChar:visible:not(.off)').each(function() {
+								$('.cdChan.FDScript-' + $(this).attr('data-name')).show();
+							});
+							break;
+					}
+				}
+				$('<button>').addClass('butbg inlineBut').text(TXT.hideShowButton).css({
+					cssText: 'font-size: 8pt !important', marginRight: '10px'
+				}).appendTo(titlebar).on('click', function() {
+					if ($('.FDScript-channelChar:visible:not(.off)').length) { //Hide all
+						$('.FDScript-channelChar').addClass('off');
+						chans.hide();
+					}
+					else { //Show all
+						$('.FDScript-channelChar').removeClass('off');
+						showCharChannels();
+					}
+				});
+				for (var i = 0; i < allMembers.length; i++) {
+					var name = allMembers[i].toLowerCase().replace(' ', '_');
+					$('<img>').attr({
+						src: '/img/design/pixel.gif',
+						title: allMembers[i],
+						'data-name': name
+					}).css({
+						background: 'url("/img/art/char.png")',
+						width: '20px', height: '16px', overflow: 'hidden',
+						cursor: 'pointer'
+					}).addClass('FDScript-channelChar char ' + name).appendTo(titlebar).on('click', function() {
+						$(this).toggleClass('off');
+						showCharChannels();
+					});
+				}
+				var form = $('<form>').css({ marginLeft: '10px', display: 'inline-block', fontSize: '10pt' }).appendTo(titlebar);
+				var divOr = $('<div>').appendTo(form);
+				$('<input>').attr({ type: 'radio', name: 'FDScript-charSel', value: 'or', checked: true }).on('click', showCharChannels).appendTo(divOr);
+				divOr.append(TXT.channelsOr);
+				var divAnd = $('<div>').appendTo(form);
+				$('<input>').attr({ type: 'radio', name: 'FDScript-charSel', value: 'and' }).on('click', showCharChannels).appendTo(divAnd);
+				divAnd.append(TXT.channelsAnd);
 			});
 		}
 
@@ -815,7 +1218,7 @@ function start() {
 			var topDiv = $('<div>').insertBefore(logs);
 
 			//Character logs analysis
-			$('<button>').text("Analyse des logs").addClass('butbg checkDiv').appendTo(topDiv).on('click', function() {
+			$('<button>').text(TXT.logsAnalysisButton).addClass('butbg inlineBut').appendTo(topDiv).on('click', function() {
 				$(this).prop('disabled', true);
 				var skills = [];
 
@@ -835,64 +1238,55 @@ function start() {
 				});
 
 				//Skills result
-				skills = ((skills.length) ? skills.reverse().join(", ") : "aucune.");
-				$('<div>').text("Compétences : " + skills).css('font-size', '0.9em').appendTo(topDiv);
+				skills = ((skills.length) ? skills.reverse().join(", ") : TXT.noSkills);
+				$('<div>').html(TXT.skillsTitle + skills).css('font-size', '0.9em').appendTo(topDiv);
 			});
 
 			//Player map
-			$('<button>').text("Analyse des déplacements").addClass('butbg checkDiv').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
+			var thisChar = currentChar;
+			var thisLogs = currentLogs;
+			$('<button>').text(TXT.movementsAnalysisButton).addClass('butbg inlineBut').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
 				//Load ship logs
 				var allCharLogs = logs.find('.cdUserlogs div div').clone();
-				if (!generalLogs.hasOwnProperty(currentLogs)) {
+				if (!generalLogs.hasOwnProperty(thisLogs)) {
 					$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
-					loadXMLDoc('http://' + document.domain + currentLogs, function(request) {
-						if (request.readyState == 4 && request.status == 200) {
-							generalLogs[currentLogs] = request.responseText;
-							console.log('fetched general logs from ' + currentLogs);
-							charMovements(allCharLogs);
-							$('[src*="/img/icons/ui/loading1.gif"]').remove();
-						}
-					}, []);
+					fetchGeneralLogs(thisLogs, function() {
+						charMovements(allCharLogs, thisChar, thisLogs);
+						$('[src*="/img/icons/ui/loading1.gif"]').remove();
+					});
 				}
 				else {
-					charMovements(allCharLogs);
+					charMovements(allCharLogs, thisChar, thisLogs);
 				}
 			});
 
 			//Divide private channels
 			var privates = logs.find('.cdPrivateChannels');
 			if (privates.length) {
-				$('<button>').text("Découpage des canaux privés").addClass('butbg checkDiv').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
+				$('<button>').text(TXT.channelsAnalysisButton).addClass('butbg inlineBut').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
+					var bugged = false;
 					var number = 0;
 					var members = [];
 					var index = 0;
 					var channels = [[]];
-					var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/;
-
-					//Add channel members mugshots
-					function addMembers(log) {
-						for (var i = 0; i < members.length; i++) {
-							$('<img>').attr({
-								src: '/img/design/pixel.gif',
-								title: members[i]
-							}).css({
-								background: 'url("/img/art/char.png")',
-								width: '20px', height: '16px', overflow: 'hidden',
-							}).addClass('char ' + members[i].toLowerCase().replace(' ', '_')).appendTo(log);
-						}
-					}
 
 					privates.find('> div > div').each(function() {
-						var text = $(this).text();
-						if (/a rejoint la discussion/.test(text)) {
-							number += 1;
-							members.push(charRegexp.exec(text)[0]);
-							addMembers($(this));
-						}
-						else if (/a quitté la discussion/.test(text)) {
-							number -= 1;
-							members.splice(members.indexOf(charRegexp.exec(text)[0]), 1);
-							addMembers($(this));
+						if (!$(this).find('.fdsName').length) { //Don't process messages, only logs
+							var text = $(this).text();
+							if (TXT.joinedChannelReg.test(text)) {
+								if (members.indexOf(charRegexp.exec(text)[0]) != -1) { //In case a log is missing, a character may be present twice, breaking all the division process
+									bugged = true;
+									return false;
+								}
+								number += 1;
+								members.push(charRegexp.exec(text)[0]);
+								addMembersToLog(members, $(this));
+							}
+							else if (TXT.leftChannelReg.test(text)) {
+								number -= 1;
+								members.splice(members.indexOf(charRegexp.exec(text)[0]), 1);
+								addMembersToLog(members, $(this));
+							}
 						}
 						channels[index].push($(this));
 						if (!number) {
@@ -900,16 +1294,21 @@ function start() {
 							index += 1;
 						}
 					});
-					//Create a div for each channel
-					for (var i = 0; i < channels.length; i++) {
-						if (!channels[i].length) { //Last "channel" (empty)
-							continue;
+					if (!bugged) {
+						//Create a div for each channel
+						for (var i = 0; i < channels.length; i++) {
+							if (!channels[i].length) { //Last "channel" (empty)
+								continue;
+							}
+							var channel = $('<div>').css({ padding: '5px 0', margin: '5px 0', borderBottom: '2px dotted red' }).appendTo(privates.find('> div'));
+							$('<h3>').text(TXT.channelTitle + (i + 1)).appendTo(channel);
+							for (var j = 0; j < channels[i].length; j++) {
+								channels[i][j].appendTo(channel);
+							}
 						}
-						var channel = $('<div>').css({ padding: '5px 0', margin: '5px 0', borderBottom: '2px dotted red' }).appendTo(privates.find('> div'));
-						$('<h3>').text("Canal n°" + (i + 1)).appendTo(channel);
-						for (var j = 0; j < channels[i].length; j++) {
-							channels[i][j].appendTo(channel);
-						}
+					}
+					else {
+						alert(TXT.channelsAnalysisBug);
 					}
 				});
 			}
@@ -921,25 +1320,37 @@ function start() {
 //CSS in <head>
 var logsHeight = localStorage['FDScript-logsHeight'];
 if (logsHeight == undefined) {
-	logsHeight = 230;
+	logsHeight = 270;
 }
-addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdWalls, .cdShipLog, .cdChannels, .cdMissions, .cdAnnounces, .mushWall > div.cdDialog, .FDScript-mushChannel { overflow: auto !important;\n position: relative !important; }");
+addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdWalls, .cdShipLog, .cdChannels, .cdMissions, .cdAnnounces, .mushWall > div.cdDialog, .FDScript-mushChannel { overflow: auto !important; position: relative !important; }");
 addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div, .FDScript-mushChannel { max-height: " + logsHeight + "px !important; } /* logsHeight */");
 addGlobalStyle(".cdWalls, .cdShipLog, .cdChannels, .mushWall > div.cdDialog { height: 500px !important; }");
 addGlobalStyle(".cdChannels { font-size: 0.9em; }");
 addGlobalStyle(".cdChan:not(:last-of-type), .cdMissions ul:not(:last-of-type), .cdAnnounces ul:not(:last-of-type) { margin: 5px 0; padding: 5px 0; border-bottom: 2px dotted red; }");
-addGlobalStyle(".checkDiv { display: inline-block; font-size: 10pt !important; }");
-addGlobalStyle(".divSep { display: block;\n border-top-style: dotted;\n border-top-color: red;\n width: 700px; }");
+addGlobalStyle(".inlineBut { display: inline-block; font-size: 10pt !important; }");
+addGlobalStyle(".divSep { display: block; border-top-style: dotted; border-top-color: red; width: 700px; }");
 addGlobalStyle("svg * { fill: #FFF; stroke: #000; }");
 addGlobalStyle("svg path.door { stroke: #11F; stroke-width: 2; }");
-addGlobalStyle("#FDScript-mapselected { fill: #FF0 !important; }");
-addGlobalStyle("#FDScript-roomselected { background-color: #83B; }");
+addGlobalStyle(".FDScript-mapselected { fill: #FF0 !important; }");
+addGlobalStyle(".FDScript-roomselected { background-color: #83B; }");
 addGlobalStyle(".FDScript-room:hover { background-color: #94C; }");
-addGlobalStyle("#FDScript-popup strong { color: #F13; }");
+addGlobalStyle(".FDScript-popup strong { color: #F13; }");
+addGlobalStyle(".FDScript-channelChar.off { opacity: 0.4; }");
+addGlobalStyle(".FDScript-titlebar { padding: 1em 1em 0 0; }");
+addGlobalStyle(".FDScript-titlebar > * { vertical-align: middle; }");
 
 
 if ($('.pol2.fds_bloc').length) { //Moderators
-	$('<button>').text("Lancer le script FDS").addClass('butbg checkDiv').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
+	$('<button>').text(TXT.modsHideMush).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
+		var noMushCss = $('#FDScript-noMush');
+		if (noMushCss.length) {
+			noMushCss.remove();
+		}
+		else {
+			$('<style>').attr({ type: 'text/css', id: 'FDScript-noMush' }).html('.fds_char_pack .mush_ico, .tid_user { display: none; }').appendTo($('head'));
+		}
+	});
+	$('<button>').text(TXT.modsStart).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
 		start();
 	});
 }
@@ -947,4 +1358,4 @@ else { //Judges
 	start();
 }
 
-$('<div>').text("Version du FDScript : " + GM_info.script.version).appendTo($('body'));
+$('<div>').text(TXT.scriptVersion + GM_info.script.version).css('font-size', '10pt').appendTo($('body'));
