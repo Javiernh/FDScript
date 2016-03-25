@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3
+// @version  1.3.1
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
@@ -123,7 +123,8 @@ if (document.domain == 'mush.vg') {
 		reverseWall: "Inverser le mur",
 		mushDayCycleReg: /^\s*Jour [0-9]+ Cycle [0-9]+\s*$/,
 		modsStart: "Lancer le script FDS",
-		modsHideMush: "Cacher/révéler les Mushs et les pseudos",
+		modsHideMush: "Cacher/révéler les Mushs",
+		modsHidePseudos: "Cacher/révéler les pseudos",
 		scriptVersion: "Version du FDScript : ",
 
 		//Reports sorting
@@ -201,7 +202,8 @@ else {
 		reverseWall: "Reverse wall",
 		mushDayCycleReg: /^\s*Day [0-9]+ Cycle [0-9]+\s*$/,
 		modsStart: "Start SDF script",
-		modsHideMush: "Hide/show Mushs and pseudos",
+		modsHideMush: "Hide/show Mushs",
+		modsHidePseudos: "Hide/show pseudos",
 		scriptVersion: "FDScript version: ",
 
 		//Reports sorting
@@ -1087,18 +1089,34 @@ function start() {
 		//Expedition links in new tab
 		$('.ui-dialog a[href]').attr('target', '_blank');
 
-		//Scrollable mush channel + divide cycles
+		//Scrollable mush channel + divide cycles + reverse wall button
 		var mush = $('.ui-dialog-content:visible:not(.FDScript-mushChannel) > li');
 		if (mush.length) {
-			mush.parent().addClass('FDScript-mushChannel');
-			mush.each(function() {
+			mush = mush.parent();
+			mush.addClass('FDScript-mushChannel');
+			mush.children('li').each(function() {
 				//Cycle separation
 				if (TXT.mushDayCycleReg.test($(this).text())) {
+					$(this).addClass('mushChannelCycle');
 					$(this).css({
-						marginBottom: '5px', paddingBottom: '5px', borderBottom: '2px dotted red',
+						margin: '5px 0', padding: '5px 0', borderBottom: '2px dotted red',
 						textAlign: 'center', fontWeight: 'bold'
 					});
 				}
+			});
+			$('<button>').text(TXT.reverseWall).addClass('butbg inlineBut').appendTo(mush.closest('.ui-dialog').find('.ui-dialog-titlebar')).on('click', function() {
+				mush.children('li').each(function() {
+					$(this).prependTo(mush);
+					//Swap top-bottom cycle borders
+					if ($(this).hasClass('mushChannelCycle')) {
+						if ($(this).css('border-bottom-width') != '0px') { //If border is on bottom
+							$(this).css({ borderBottom: 'none', borderTop: '2px dotted red' });
+						}
+						else {
+							$(this).css({ borderBottom: '2px dotted red', borderTop: 'none' });
+						}
+					}
+				});
 			});
 		}
 
@@ -1347,7 +1365,16 @@ if ($('.pol2.fds_bloc').length) { //Moderators
 			noMushCss.remove();
 		}
 		else {
-			$('<style>').attr({ type: 'text/css', id: 'FDScript-noMush' }).html('.fds_char_pack .mush_ico, .tid_user { display: none; }').appendTo($('head'));
+			$('<style>').attr({ type: 'text/css', id: 'FDScript-noMush' }).html('.fds_char_pack .mush_ico { display: none; }').appendTo($('head'));
+		}
+	});
+	$('<button>').text(TXT.modsHidePseudos).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
+		var noPseudosCss = $('#FDScript-noPseudos');
+		if (noPseudosCss.length) {
+			noPseudosCss.remove();
+		}
+		else {
+			$('<style>').attr({ type: 'text/css', id: 'FDScript-noPseudos' }).html('.tid_user { display: none; }').appendTo($('head'));
 		}
 	});
 	$('<button>').text(TXT.modsStart).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
