@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.2
+// @version  1.3.3
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
@@ -54,6 +54,7 @@
 
 
 var console = unsafeWindow.console;
+var localStorage = unsafeWindow.localStorage;
 
 //Make your SVG dreams come true (credits: dascritch.net)
 $.fn.extend({
@@ -1073,7 +1074,7 @@ function start() {
 			}
 		});
 	});
-	
+
 	//Player logs analysis
 	setInterval(function() {
 		//Reverse wall (eventually)
