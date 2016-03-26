@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.1
+// @version  1.3.2
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
@@ -43,7 +43,7 @@
  * Sanctions are sorted by categories, and by number of points inside categories, +suicide grouped with negativity.
  * Setting for auto height of logs.
  * Expedition links open in a new tab.
- * New: wall-reversing button.
+ * New: wall-reversing button for main and Mush channels.
  * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship.
  * English translation.
  * Easter egg!
@@ -80,7 +80,7 @@ if (document.domain == 'mush.vg') {
 
 	var TXT = {
 		//displayTreatment()
-		checkVaccinated: "en %1",
+		checkVaccinated: "vacciné en %1",
 		checkTransferred: "a transféré dans %1 en %2",
 		checkIsMush: "depuis %1",
 		checkStolen: "corps volé par %1 en %2",
@@ -159,7 +159,7 @@ else {
 
 	var TXT = {
 		//displayTreatment()
-		checkVaccinated: "in %1",
+		checkVaccinated: "vaccinated in %1",
 		checkTransferred: "transferred into %1 in %2",
 		checkIsMush: "since %1",
 		checkStolen: "body stolen by %1 in %2",
@@ -182,7 +182,7 @@ else {
 		noPsyDiseases: "none.",
 		psyDiseasesTitle: "<b>Psy illnesses logs:</b> ",
 		wavesTitle: "<b>Hunter waves:</b> ",
-		perishedTitle: "<b>Perished food destructions:</b> ",
+		perishedTitle: "<b>Perishable food destructions:</b> ",
 		defacedTitle: "<b>Defaced rooms:</b> ",
 		alarmsTitle: "<b>Mycoalarms ringing:</b> ",
 		PILGREDTitle: "<b>PILGRED repaired:</b> ",
@@ -280,28 +280,29 @@ function displayTreatment(request, params) {
 
 		if (vaccinated) {
 			var text = TXT.checkVaccinated.replace('%1', vaccinated[1]);
-			$('<img>').attr('src', '/img/icons/ui/pa_heal.png').css('margin-right', '3px').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (transferred) {
 			var text = TXT.checkTransferred.replace('%1', transferred[2]).replace('%2', transferred[1]);
-			$('<img>').attr('src', '/img/icons/ui/pageright.png').css('margin-right', '3px').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (isMush) {
 			var text = TXT.checkIsMush.replace('%1', isMush[1]);
-			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else if (stolen) {
 			var text = TXT.checkStolen.replace('%1', stolen[2]).replace('%2', stolen[1]);
-			$('<img>').attr('src', '/img/icons/ui/mush.png').css('margin-right', '3px').appendTo(icoDiv);
+			$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
 			$('<span>').text(text).appendTo(icoDiv);
 		}
 		else {
 			$('<img>').attr('src', '/img/icons/ui/p_alive.png').appendTo(icoDiv);
 		}
 	}
+	$('[src*="/img/icons/ui/loading1.gif"]').remove();
 }
 
 function highlightActions(log) {
@@ -881,8 +882,9 @@ function start() {
 
 		//Check if Mush or human
 		$('<input>').attr({
-			type: 'button', value: 'check', 'data-histolink': histoLink, 'data-block-id': block.attr('data-id')
+			type: 'button', value: 'Check', 'data-histolink': histoLink, 'data-block-id': block.attr('data-id')
 		}).addClass('butbg').on('click', function() {
+			$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
 			loadXMLDoc($(this).attr('data-histolink'), displayTreatment, { id: $(this).attr('data-block-id') });
 			$(this).prop('disabled', true);
 		}).appendTo(plainteeDiv);
@@ -1075,12 +1077,12 @@ function start() {
 	//Player logs analysis
 	setInterval(function() {
 		//Reverse wall (eventually)
-		var wall = $('.cdWalls:not(.scripted)');
+		var wall = $('.cdWalls:visible:not(.scripted)');
 		if (wall.length) {
 			wall.addClass('scripted');
 			$('<button>').text(TXT.reverseWall).addClass('butbg inlineBut').appendTo(wall.closest('.ui-dialog').find('.ui-dialog-titlebar')).on('click', function() {
 				var title = wall.find('h3');
-				$('.cdWall').each(function() {
+				wall.find('.cdWall').each(function() {
 					$(this).insertAfter(title);
 				});
 			});
