@@ -3,9 +3,11 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.3
+// @version  1.3.4
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
+// @connect  mush.vg
+// @connect  mush.twinoid.com
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
 // ==/UserScript==
 
@@ -46,6 +48,7 @@
  * New: wall-reversing button for main and Mush channels.
  * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship.
  * English translation.
+ * Optimized! (a bit)
  * Easter egg!
  * Doesn't brew coffe (yet).
  * May become self-aware, handle with care.
@@ -307,8 +310,8 @@ function displayTreatment(request, params) {
 }
 
 function highlightActions(log) {
-	if (!log.hasClass('scripted')) {
-		log.addClass('scripted');
+	if (!log.hasClass('FDScripted')) {
+		log.addClass('FDScripted');
 		var html = log.html();
 		//Highlight dirtification (normal log, extract a spore, vomit on yourself, target of massgeddon)
 		if (/EV:DIRTED|AC:CREATE_SPORE|EV:SYMPTOM_VOMIT|EV:AC_MASS_GGEDON_TGT/.test(html)) {
@@ -456,7 +459,7 @@ function charMovements(allCharLogs, thisChar, thisLogs) {
 		src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AIVEy040d+6twAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAXklEQVQoz2NgoCXQbvgiodP05z8DAwMDE7EaGJk4nv//90OSgYGBgZEUDVcbeF4Q1IRNA17noWsg6CdsGvD6CZ8GrH4iRgOK8whpwPATMRqQ/cTEwMDAgOFmAnyyAADp4pEx3U4jiAAAAABJRU5ErkJggg=='
 	}).appendTo(popup);
 	var zIndex = 1000;
-	$('.ui-dialog:visible').each(function() {
+	$('.ui-dialog').filter(':visible').each(function() {
 		var z = parseInt($(this).css('z-index'));
 		if (zIndex < z) {
 			zIndex = z;
@@ -485,7 +488,7 @@ function charMovements(allCharLogs, thisChar, thisLogs) {
 	title.on('mousedown', function() {
 		moving = true;
 		var zIndex = 1000;
-		$('.ui-dialog:visible').each(function() {
+		$('.ui-dialog').filter(':visible').each(function() {
 			var z = parseInt($(this).css('z-index'));
 			if (zIndex < z) {
 				zIndex = z;
@@ -827,14 +830,17 @@ function addMembersToLog(members, log) {
 }
 
 function start() {
-	console.log('starting FDScript');
+	console.log('FDScript: starting');
 	var currentShip = -1;
 	var ships = [];
 	var currShip = 0;
+	var reports = 0;
 
 	//Scan through all reports
-	$("div.fds_control_bloc.cdControl").each(function() {
+	$(".fds_control_bloc:not(.FDScripted)").each(function() {
+		reports += 1;
 		var block = $(this);
+		block.addClass('FDScripted');
 		var histoLink = '';
 
 		//Get plaintee & Chun histoLink
@@ -900,12 +906,14 @@ function start() {
 		//Separator
 		$('<div>').addClass('divSep').hide().appendTo(block.parent());
 	});
+	console.log('FDScript: found ' + reports + ' reports in ' + ships.length + ' ships');
 
-	//Fix displaying Mush channel
-	$('a [href*="mushLog"]').attr("onclick", "Main.ajaxPopup($(this).attr('href'), { width: '600px', dialogClass: 'mushWall' }); return false;");
+	//Add a couple classes for selection optimization
+	$('[href*="mushLog"]').attr("onclick", "Main.ajaxPopup($(this).attr('href'), { width: '600px', dialogClass: 'mushWall' }); return false;");
+	$('[href*="s/story"]').attr("onclick", "Main.ajaxPopup($(this).attr('href'), { width: '600px', dialogClass: 'playerLogs' }); return false;");
 
 	//Display number of reports and ships
-	var reportsNumber = TXT.reportsNumber.replace('%1', $("div.fds_control_bloc.cdControl").length).replace('%2', ships.length);
+	var reportsNumber = TXT.reportsNumber.replace('%1', reports).replace('%2', ships.length);
 	$('.fds_bloc').eq(2).find('h2').append(reportsNumber);
 
 	//Navigation buttons (initially hidden)
@@ -924,8 +932,8 @@ function start() {
 		color: 'black', width: '5em'
 	}).appendTo(paramsDiv).on('change', function() {
 		var logsHeight = $(this).val();
-		$('style:contains("logsHeight")').remove();
-		addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div, .FDScript-mushChannel { max-height: " + logsHeight + "px !important; } /*logsHeight*/");
+		$('style').filter(':contains("logsHeight")').remove();
+		addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div { max-height: " + logsHeight + "px !important; } /*logsHeight*/");
 		localStorage['FDScript-logsHeight'] = logsHeight;
 		if (logsHeight == '42') {
 			$('#FDScript-easterEgg').show();
@@ -933,7 +941,7 @@ function start() {
 		else {
 			$('#FDScript-easterEgg').hide();
 		}
-	});;
+	});
 	paramsDiv.append("px");
 	$('<div>').html(TXT.easterEgg).attr('id', 'FDScript-easterEgg').hide().appendTo($('.readmore'));
 	
@@ -984,6 +992,10 @@ function start() {
 			//De-check other inputs
 			if (altCheck.is(':checked')) {
 				altCheck.click();
+			}
+			if (sortCheck.is(':checked')) {
+				sortCheck.click();
+				$(this).click();
 			}
 			labSortCheck.text(TXT.gamesSort);
 		}
@@ -1078,9 +1090,9 @@ function start() {
 	//Player logs analysis
 	setInterval(function() {
 		//Reverse wall (eventually)
-		var wall = $('.cdWalls:visible:not(.scripted)');
+		var wall = $('.cdWalls:not(.FDScripted)').filter(':visible');
 		if (wall.length) {
-			wall.addClass('scripted');
+			wall.addClass('FDScripted');
 			$('<button>').text(TXT.reverseWall).addClass('butbg inlineBut').appendTo(wall.closest('.ui-dialog').find('.ui-dialog-titlebar')).on('click', function() {
 				var title = wall.find('h3');
 				wall.find('.cdWall').each(function() {
@@ -1090,13 +1102,15 @@ function start() {
 		}
 
 		//Expedition links in new tab
-		$('.ui-dialog a[href]').attr('target', '_blank');
+		$('[href*="expPerma"]').attr('target', '_blank');
+
+		//Delete closed windows for optimization
+		$('.ui-dialog').filter(':hidden').remove();
 
 		//Scrollable mush channel + divide cycles + reverse wall button
-		var mush = $('.ui-dialog-content:visible:not(.FDScript-mushChannel) > li');
+		var mush = $('.mushWall:not(.FDScripted) .cdDialog').filter(':visible');
 		if (mush.length) {
-			mush = mush.parent();
-			mush.addClass('FDScript-mushChannel');
+			mush.parent().addClass('FDScripted');
 			mush.children('li').each(function() {
 				//Cycle separation
 				if (TXT.mushDayCycleReg.test($(this).text())) {
@@ -1124,7 +1138,7 @@ function start() {
 		}
 
 		//All private channels
-		var allChannels = $('.cdChannels:visible:not(.FDScripted)');
+		var allChannels = $('.cdChannels:not(.FDScripted)').filter(':visible');
 		if (allChannels.length) {
 			allChannels.addClass('FDScripted');
 			var titlebar = allChannels.closest('.ui-dialog').find('.ui-dialog-titlebar');
@@ -1181,14 +1195,14 @@ function start() {
 					switch ($('[name="FDScript-charSel"]:visible:checked').val()) {
 						case 'and':
 							var chars = [];
-							$('.FDScript-channelChar:visible:not(.off)').each(function() {
+							$('.FDScript-channelChar:not(.off)').filter(':visible').each(function() {
 								chars.push('FDScript-' + $(this).attr('data-name'));
 							});
 							$('.cdChan.' + chars.join('.')).show();
 							break;
 						case 'or':
 						default:
-							$('.FDScript-channelChar:visible:not(.off)').each(function() {
+							$('.FDScript-channelChar:not(.off)').filter(':visible').each(function() {
 								$('.cdChan.FDScript-' + $(this).attr('data-name')).show();
 							});
 							break;
@@ -1197,7 +1211,7 @@ function start() {
 				$('<button>').addClass('butbg inlineBut').text(TXT.hideShowButton).css({
 					cssText: 'font-size: 8pt !important', marginRight: '10px'
 				}).appendTo(titlebar).on('click', function() {
-					if ($('.FDScript-channelChar:visible:not(.off)').length) { //Hide all
+					if ($('.FDScript-channelChar:not(.off)').filter(':visible').length) { //Hide all
 						$('.FDScript-channelChar').addClass('off');
 						chans.hide();
 					}
@@ -1232,11 +1246,11 @@ function start() {
 		}
 
 		//Personal logs
-		var logs = $('.ui-dialog:visible .fdsStory:not(.cdShipLog):not(.cdWalls):not(.scripted)');
+		var logs = $('.playerLogs:not(.FDScripted)').filter(':visible');
 		if (logs.length) {
+			logs.addClass('FDScripted');
 			$('[onclick*="slideDown"]').attr('onclick', '$(this).parent().next().slideToggle(); return false;'); //Bugfix
-			logs.addClass('scripted');
-			var topDiv = $('<div>').insertBefore(logs);
+			var topDiv = $('<div>').insertBefore(logs.find('.fdsStory'));
 
 			//Character logs analysis
 			$('<button>').text(TXT.logsAnalysisButton).addClass('butbg inlineBut').appendTo(topDiv).on('click', function() {
@@ -1334,7 +1348,7 @@ function start() {
 				});
 			}
 		}
-	}, 100);
+	}, 250);
 }
 
 
@@ -1343,9 +1357,10 @@ var logsHeight = localStorage['FDScript-logsHeight'];
 if (logsHeight == undefined) {
 	logsHeight = 270;
 }
-addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdWalls, .cdShipLog, .cdChannels, .cdMissions, .cdAnnounces, .mushWall > div.cdDialog, .FDScript-mushChannel { overflow: auto !important; position: relative !important; }");
-addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div, .FDScript-mushChannel { max-height: " + logsHeight + "px !important; } /* logsHeight */");
-addGlobalStyle(".cdWalls, .cdShipLog, .cdChannels, .mushWall > div.cdDialog { height: 500px !important; }");
+console.log('FDScript: localStorage["FDScript-logsHeight"]: ' + localStorage['FDScript-logsHeight']);
+addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdWalls, .cdShipLog, .cdChannels, .cdMissions, .cdAnnounces { overflow: auto !important; position: relative !important; }");
+addGlobalStyle(".cdUserlogs > div, .cdPrivateChannels > div, .cdMissions, .cdAnnounces, .FDScript-logsPack div { max-height: " + logsHeight + "px !important; } /* logsHeight */");
+addGlobalStyle(".cdWalls, .cdShipLog, .cdChannels, .mushWall .cdDialog { height: 500px !important; }");
 addGlobalStyle(".cdChannels { font-size: 0.9em; }");
 addGlobalStyle(".cdChan:not(:last-of-type), .cdMissions ul:not(:last-of-type), .cdAnnounces ul:not(:last-of-type) { margin: 5px 0; padding: 5px 0; border-bottom: 2px dotted red; }");
 addGlobalStyle(".inlineBut { display: inline-block; font-size: 10pt !important; }");
