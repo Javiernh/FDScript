@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.4
+// @version  1.3.5
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -46,7 +46,7 @@
  * Setting for auto height of logs.
  * Expedition links open in a new tab.
  * New: wall-reversing button for main and Mush channels.
- * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship.
+ * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship, AP count.
  * English translation.
  * Optimized! (a bit)
  * Easter egg!
@@ -78,6 +78,9 @@ var charRegexp = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Step
 var generalLogs = {};
 var currentLogs;
 var currentChar;
+var isMod = false;
+
+var actions = { 'PICK_OBJECT': 0, 'DROP_OBJECT': 0, 'SEEK_HIDDEN': 1, 'HIDE_OBJECT': 1, 'CONSULT_DOC': 0, 'INSPECT': 0, 'INSTALL_EQ': 2, 'REMOVE_EQ': 1, 'REPAIR_HULL': 1, 'REPAIR_OBJECT': 1, 'DISASSEMBLE': 1, 'BUILD': 3, 'REPAIR_PATROL_SHIP': 1, 'REPAIR_PILGRED': 2, 'UPGRADE_DRONE': 2, 'FILL_TANK': 0, 'REFILL_TANK': 0, 'FILL_OXY_TANK': 0, 'RETRIEVE_CAPSULE': 0, 'UNLOAD_OXY_TANK': 0, 'UNLOAD_TANK': 0, 'CHECK_LEVEL': 0, 'PATROL_SHIP_TAKEOFF': 2, 'PATROL_SHIP_ATTACK': 1, 'PATROL_SHIP_LAND': 2, 'PATROL_SHIP_EJECT': 1, 'PATROL_SHIP_PLANET_LAND': 4, 'PATROL_CHANGE_STANCE': 1, 'PASIPHAE_RETRIEVE_CRAP': 2, 'PASIPHAE_RESCUE': 2, 'ICARUS_TAKEOFF': 4, 'CHANGE_SHIP_ORIENTATION': 1, 'ADVANCE_SHIP': 1, 'SET_PILGRED_TO_SOL': 2, 'TURRET_ATTACK': 1, 'SHOOT': 1, 'ATTACK': 1, 'AGGRO_ATTACK': 1, 'BITE': 0, 'TORTURE': 1, 'BRAWL': 1, 'GAG': 1, 'UNGAG': 1, 'HEAL': 2, 'SELF_HEAL': 3, 'VACCINE': 1, 'SURGERY': 2, 'KIND_WORDS': 1, 'LAY_DOWN': 0, 'WAKE_UP': 0, 'COOK_RATION': 1, 'EAT': 0, 'UNCOOK': 1, 'QUICK_COOK_RATION': 0, 'USE_DISPENSER': 0, 'RETRIEVE_COFFEE': 0, 'WATER_PLANTS': 1, 'TREAT_PLANTS': 2, 'NEW_PLANTS_SEEDING': 2, 'SCAN_FOR_PLANETS': 2, 'DEEP_PLANET_ANALYSIS': 2, 'REMOTE_PLANET_ANALYSIS': 2, 'DISMISS_SCAN': 0, 'ACCESS': 0, 'RESEARCH': 2, 'DIG_PROJECT': 2, 'CHECK_CREW_LIST': 0, 'ESTABLISH_COM': 2, 'DECODE_REBEL_SIGNAL': 2, 'CONTACT_XYLOPH': 2, 'NERON_UPDATE': 2, 'DAILY_ORDER': 0, 'BROADCAST_MESSAGE': 0, 'COMMANDER_ORDER': 1, 'FIERY_SPEECH': 2, 'SUICIDE': 0, 'AUTO_DESTROY': 0, 'REPAIR_TUTO_0': 1, 'REPAIR_TUTO_1': 1, 'SHOOT_TUTO_0': 1, 'SHOOT_TUTO_1': 1, 'MOVE': 0, 'INFECT': 1, 'CREATE_SPORE': 3, 'CHECK_FOR_INFECTION': 0, 'TRY_KUBE': 1, 'USE_EXTINGUISHER': 1, 'WASH_SELF': 1, 'OPEN_CAPS': 1, 'WRITE_DOC': 0, 'CHECK_BATTERY': 0, 'TEAR': 0, 'DEFROST': 1, 'SIGNAL_FIRE': 0, 'SIGNAL_EQUIPMENT': 0, 'EXTRACT_SPORE': 3, 'CHECK_AMMO': 0, 'HEAL_ULTIMATE': 0, 'PUBLIC_TV_BROADCAST': 2, 'PRINT_ZE_LIST': 0, 'HACK': 2, 'SPREAD_FIRE': 4, 'SABOTAGE': 1, 'DOOR_SABOTAGE': 0, 'DEPRESS': 2, 'GIVE_NIGHTMARE': 0, 'MIX_RATION_SPORE': 0, 'EXCHANGE_BODY': 0, 'SCREW_TALKY': 3, 'BECOME_GENIUS': 0, 'PREMONITION': 1, 'GUARD': 1, 'CEASE_FIRE': 2, 'GO_BERSERK': 3, 'EAT_SPORE': 0, 'TRAP_CLOSET': 1, 'GIVE_DISEASE': 2, 'CARESS': 1, 'THROW': 1, 'LEARN': 0, 'DO_THE_THING': 1, 'WHISPER': 0, 'SELF_SURGERY': 4, 'FLIRT': 1, 'MUSH_CARESS': 1, 'PICK_CAT': 0, 'NEW_PLANTS_GRAFTING': 2, 'USE_ITEM': 0, 'USE_BANDAGE': 1, 'PLAY_ARCADE': 1, 'RELOAD_FLAMER': 0, 'SET_PILGRED_TO_EDEN': 2, 'COMPUTE_EDEN': 2, 'MASS_GGEDON': 2, 'NERON_DEPRESS': 3, 'SLIME_TRAP': 1, 'DAUNT': 1, 'ANATHEM': 1, 'RUN_HOME': 2, 'GEN_METAL': 0, 'REINFORCE': 1, 'DELETE_SHIP': 0, 'CHITCHAT': 1, 'BORING_SPEECH': 2, 'CLOSE_DEAL': 2, 'PUT_THROUGH_DOOR': 2, 'ACCESS_SECONDARY': 0, 'INVOKE_MERCHANT': 0, 'SLIME_OBJECT': 1, 'DELOG': 2, 'EXTINGUISH': 1, 'REJOICE': 0, 'PUTSCH': 3 };
 
 if (document.domain == 'mush.vg') {
 	var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Planton', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
@@ -129,6 +132,7 @@ if (document.domain == 'mush.vg') {
 		modsStart: "Lancer le script FDS",
 		modsHideMush: "Cacher/révéler les Mushs",
 		modsHidePseudos: "Cacher/révéler les pseudos",
+		modsAPCount: "<em>(Mode modo)</em> <b>Énergie utilisée :</b> ~%1 PA",
 		scriptVersion: "Version du FDScript : ",
 
 		//Reports sorting
@@ -208,6 +212,7 @@ else {
 		modsStart: "Start SDF script",
 		modsHideMush: "Hide/show Mushs",
 		modsHidePseudos: "Hide/show pseudos",
+		modsAPCount: "<em>(Mods only)</em> <b>Energy spent:</b> ~%1 AP",
 		scriptVersion: "FDScript version: ",
 
 		//Reports sorting
@@ -843,7 +848,7 @@ function start() {
 		block.addClass('FDScripted');
 		var histoLink = '';
 
-		//Get plaintee & Chun histoLink
+		//Get plaintee histoLink
 		var plainteeDiv = block.find('.inl-blck').eq(1);
 		block.find('.cdProof .fds_char_pack').each(function() {
 			if ($(this).find('.fdsName').text() == plainteeDiv.find('.fdsName').text()) {
@@ -983,6 +988,7 @@ function start() {
 	viewCheck.on('change', function() {
 		if (this.checked) {
 			//Hide all ships but the first
+			currShip = 0;
 			$('.allships').hide();
 			$('.shipNum' + ships[0]).show();
 
@@ -1256,6 +1262,7 @@ function start() {
 			$('<button>').text(TXT.logsAnalysisButton).addClass('butbg inlineBut').appendTo(topDiv).on('click', function() {
 				$(this).prop('disabled', true);
 				var skills = [];
+				var AP = 0;
 
 				//Log by log analysis
 				logs.find('.cdUserlogs div div').each(function() {
@@ -1270,11 +1277,24 @@ function start() {
 						var skill = /([0-9]+\.[0-9]+)(?:.+)\{Skill chosen : (.*) as[a-z]*\}/.exec($(this).text());
 						skills.push(skill[2] + " (" + skill[1] + ")");
 					}
+
+					//Mods: AP count
+					if (isMod) {
+						var tip = $(this).find('span').eq(0).attr('onmouseover');
+						if (/AC:/.test(tip)) {
+							AP += actions[/\[AC:([^\]]+)\]/.exec(tip)[1]];
+						}
+					}
 				});
 
 				//Skills result
 				skills = ((skills.length) ? skills.reverse().join(", ") : TXT.noSkills);
 				$('<div>').html(TXT.skillsTitle + skills).css('font-size', '0.9em').appendTo(topDiv);
+
+				//Mods: AP count result
+				if (isMod) {
+					$('<div>').html(TXT.modsAPCount.replace('%1', AP)).css('font-size', '0.9em').appendTo(topDiv);
+				}
 			});
 
 			//Player map
@@ -1377,6 +1397,7 @@ addGlobalStyle(".FDScript-titlebar > * { vertical-align: middle; }");
 
 
 if ($('.pol2.fds_bloc').length) { //Moderators
+	isMod = true;
 	$('<button>').text(TXT.modsHideMush).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
 		var noMushCss = $('#FDScript-noMush');
 		if (noMushCss.length) {
