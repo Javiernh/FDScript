@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.5
+// @version  1.3.6
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -18,6 +18,7 @@
  * DONE
  * Personal logs analysis:
    - Highlight: getting dirty, showers, becoming Mush, transfer (both sides), cured Mush, mutation, talkie pirating, taking skills (own skills, magebook and Apprentice), +some moral sources,
+   - Mush/human + pirated status,
    - List of skills and the cycle they were chosen,
    - Character's name is not red anymore (too heavy).
  * General logs analysis:
@@ -80,7 +81,57 @@ var currentLogs;
 var currentChar;
 var isMod = false;
 
-var actions = { 'PICK_OBJECT': 0, 'DROP_OBJECT': 0, 'SEEK_HIDDEN': 1, 'HIDE_OBJECT': 1, 'CONSULT_DOC': 0, 'INSPECT': 0, 'INSTALL_EQ': 2, 'REMOVE_EQ': 1, 'REPAIR_HULL': 1, 'REPAIR_OBJECT': 1, 'DISASSEMBLE': 1, 'BUILD': 3, 'REPAIR_PATROL_SHIP': 1, 'REPAIR_PILGRED': 2, 'UPGRADE_DRONE': 2, 'FILL_TANK': 0, 'REFILL_TANK': 0, 'FILL_OXY_TANK': 0, 'RETRIEVE_CAPSULE': 0, 'UNLOAD_OXY_TANK': 0, 'UNLOAD_TANK': 0, 'CHECK_LEVEL': 0, 'PATROL_SHIP_TAKEOFF': 2, 'PATROL_SHIP_ATTACK': 1, 'PATROL_SHIP_LAND': 2, 'PATROL_SHIP_EJECT': 1, 'PATROL_SHIP_PLANET_LAND': 4, 'PATROL_CHANGE_STANCE': 1, 'PASIPHAE_RETRIEVE_CRAP': 2, 'PASIPHAE_RESCUE': 2, 'ICARUS_TAKEOFF': 4, 'CHANGE_SHIP_ORIENTATION': 1, 'ADVANCE_SHIP': 1, 'SET_PILGRED_TO_SOL': 2, 'TURRET_ATTACK': 1, 'SHOOT': 1, 'ATTACK': 1, 'AGGRO_ATTACK': 1, 'BITE': 0, 'TORTURE': 1, 'BRAWL': 1, 'GAG': 1, 'UNGAG': 1, 'HEAL': 2, 'SELF_HEAL': 3, 'VACCINE': 1, 'SURGERY': 2, 'KIND_WORDS': 1, 'LAY_DOWN': 0, 'WAKE_UP': 0, 'COOK_RATION': 1, 'EAT': 0, 'UNCOOK': 1, 'QUICK_COOK_RATION': 0, 'USE_DISPENSER': 0, 'RETRIEVE_COFFEE': 0, 'WATER_PLANTS': 1, 'TREAT_PLANTS': 2, 'NEW_PLANTS_SEEDING': 2, 'SCAN_FOR_PLANETS': 2, 'DEEP_PLANET_ANALYSIS': 2, 'REMOTE_PLANET_ANALYSIS': 2, 'DISMISS_SCAN': 0, 'ACCESS': 0, 'RESEARCH': 2, 'DIG_PROJECT': 2, 'CHECK_CREW_LIST': 0, 'ESTABLISH_COM': 2, 'DECODE_REBEL_SIGNAL': 2, 'CONTACT_XYLOPH': 2, 'NERON_UPDATE': 2, 'DAILY_ORDER': 0, 'BROADCAST_MESSAGE': 0, 'COMMANDER_ORDER': 1, 'FIERY_SPEECH': 2, 'SUICIDE': 0, 'AUTO_DESTROY': 0, 'REPAIR_TUTO_0': 1, 'REPAIR_TUTO_1': 1, 'SHOOT_TUTO_0': 1, 'SHOOT_TUTO_1': 1, 'MOVE': 0, 'INFECT': 1, 'CREATE_SPORE': 3, 'CHECK_FOR_INFECTION': 0, 'TRY_KUBE': 1, 'USE_EXTINGUISHER': 1, 'WASH_SELF': 1, 'OPEN_CAPS': 1, 'WRITE_DOC': 0, 'CHECK_BATTERY': 0, 'TEAR': 0, 'DEFROST': 1, 'SIGNAL_FIRE': 0, 'SIGNAL_EQUIPMENT': 0, 'EXTRACT_SPORE': 3, 'CHECK_AMMO': 0, 'HEAL_ULTIMATE': 0, 'PUBLIC_TV_BROADCAST': 2, 'PRINT_ZE_LIST': 0, 'HACK': 2, 'SPREAD_FIRE': 4, 'SABOTAGE': 1, 'DOOR_SABOTAGE': 0, 'DEPRESS': 2, 'GIVE_NIGHTMARE': 0, 'MIX_RATION_SPORE': 0, 'EXCHANGE_BODY': 0, 'SCREW_TALKY': 3, 'BECOME_GENIUS': 0, 'PREMONITION': 1, 'GUARD': 1, 'CEASE_FIRE': 2, 'GO_BERSERK': 3, 'EAT_SPORE': 0, 'TRAP_CLOSET': 1, 'GIVE_DISEASE': 2, 'CARESS': 1, 'THROW': 1, 'LEARN': 0, 'DO_THE_THING': 1, 'WHISPER': 0, 'SELF_SURGERY': 4, 'FLIRT': 1, 'MUSH_CARESS': 1, 'PICK_CAT': 0, 'NEW_PLANTS_GRAFTING': 2, 'USE_ITEM': 0, 'USE_BANDAGE': 1, 'PLAY_ARCADE': 1, 'RELOAD_FLAMER': 0, 'SET_PILGRED_TO_EDEN': 2, 'COMPUTE_EDEN': 2, 'MASS_GGEDON': 2, 'NERON_DEPRESS': 3, 'SLIME_TRAP': 1, 'DAUNT': 1, 'ANATHEM': 1, 'RUN_HOME': 2, 'GEN_METAL': 0, 'REINFORCE': 1, 'DELETE_SHIP': 0, 'CHITCHAT': 1, 'BORING_SPEECH': 2, 'CLOSE_DEAL': 2, 'PUT_THROUGH_DOOR': 2, 'ACCESS_SECONDARY': 0, 'INVOKE_MERCHANT': 0, 'SLIME_OBJECT': 1, 'DELOG': 2, 'EXTINGUISH': 1, 'REJOICE': 0, 'PUTSCH': 3 };
+var actions = {
+	/* Use items/equipments */
+	'PICK_OBJECT': 0, 'DROP_OBJECT': 0, 'SEEK_HIDDEN': 1, 'HIDE_OBJECT': 1, 'PICK_CAT': 0,
+	'CONSULT_DOC': 0, 'WRITE_DOC': 0, 'TEAR': 0, 'INSPECT': 0,
+	'INSTALL_EQ': 2, 'REMOVE_EQ': 1, 'DISASSEMBLE': 1, 'BUILD': 3, 'UPGRADE_DRONE': 2, 'GEN_METAL': 0, 'REINFORCE': 1,
+	'REPAIR_HULL': 1, 'REPAIR_OBJECT': 1, 'REPAIR_PATROL_SHIP': 1, 'REPAIR_PILGRED': 2,
+	'FILL_TANK': 0, 'REFILL_TANK': 0, 'FILL_OXY_TANK': 0, 'RETRIEVE_CAPSULE': 0, 'UNLOAD_OXY_TANK': 0, 'UNLOAD_TANK': 0, 'CHECK_LEVEL': 0,
+	'SIGNAL_EQUIPMENT': 0, 'SIGNAL_FIRE': 0, 'USE_EXTINGUISHER': 1, 'EXTINGUISH': 1,
+
+	/* Ships and navigation */
+	'TURRET_ATTACK': 1, 'PATROL_SHIP_TAKEOFF': 2, 'PATROL_SHIP_ATTACK': 1, 'PATROL_SHIP_LAND': 2, 'PATROL_SHIP_EJECT': 1, 'PATROL_SHIP_PLANET_LAND': 4, 'PATROL_CHANGE_STANCE': 1,
+	'PASIPHAE_RETRIEVE_CRAP': 2, 'PASIPHAE_RESCUE': 2, 'OPEN_CAPS': 1,
+	'ICARUS_TAKEOFF': 4, 'RUN_HOME': 2,
+	'CHANGE_SHIP_ORIENTATION': 1, 'ADVANCE_SHIP': 1, 'SET_PILGRED_TO_SOL': 2, 'SET_PILGRED_TO_EDEN': 2, 'COMPUTE_EDEN': 2, 'PUTSCH': 3,
+
+	/* Aggressive actions */
+	'SHOOT': 1, 'ATTACK': 1, 'AGGRO_ATTACK': 1, 'BITE': 0, 'TORTURE': 1, 'BRAWL': 1, 'THROW': 1,
+	'GAG': 1, 'UNGAG': 1, 'PUT_THROUGH_DOOR': 2, 'GUARD': 1, 'CEASE_FIRE': 2,
+	'PREMONITION': 1, 'DAUNT': 1, 'ANATHEM': 1,
+
+	/* Health & morale */
+	'HEAL': 2, 'SELF_HEAL': 3, 'VACCINE': 1, 'SURGERY': 2, 'SELF_SURGERY': 4, 'HEAL_ULTIMATE': 0, 'USE_BANDAGE': 1, 'EXTRACT_SPORE': 1,
+	'KIND_WORDS': 1, 'FIERY_SPEECH': 2, 'CARESS': 1, 'FLIRT': 1, 'DO_THE_THING': 1, 'CHITCHAT': 1, 'PUBLIC_TV_BROADCAST': 2, 'REJOICE': 0, 'PLAY_ARCADE': 1,
+
+	/* Personal actions */
+	'LAY_DOWN': 0, 'WAKE_UP': 0, 'WASH_SELF': 1, 'TRY_KUBE': 1,
+	'PRINT_ZE_LIST': 0, 'BECOME_GENIUS': 0, 'LEARN': 0, 'BORING_SPEECH': 2,
+
+	/* Food & plants */
+	'COOK_RATION': 1, 'EAT': 0, 'UNCOOK': 1, 'QUICK_COOK_RATION': 0, 'USE_DISPENSER': 0, 'RETRIEVE_COFFEE': 0, 'DEFROST': 1,
+	'WATER_PLANTS': 1, 'TREAT_PLANTS': 2, 'NEW_PLANTS_SEEDING': 2, 'NEW_PLANTS_GRAFTING': 2,
+
+	/* Working on terminals/equipments */
+	'SCAN_FOR_PLANETS': 2, 'DEEP_PLANET_ANALYSIS': 2, 'REMOTE_PLANET_ANALYSIS': 2, 'DISMISS_SCAN': 0,
+	'ACCESS': 0, 'ACCESS_SECONDARY': 0, 'HACK': 2,
+	'RESEARCH': 2, 'DIG_PROJECT': 2,
+	'ESTABLISH_COM': 2, 'DECODE_REBEL_SIGNAL': 2, 'CONTACT_XYLOPH': 2, 'NERON_UPDATE': 2, 'CLOSE_DEAL': 2,
+	'DAILY_ORDER': 0, 'BROADCAST_MESSAGE': 0, 'COMMANDER_ORDER': 1,
+	'CHECK_CREW_LIST': 0, 'CHECK_FOR_INFECTION': 0,
+
+	/* Technical/beta/unimplemented actions */
+	'SUICIDE': 0, 'AUTO_DESTROY': 0, 'INVOKE_MERCHANT': 0, 'DELETE_SHIP': 0,
+	'REPAIR_TUTO_0': 1, 'REPAIR_TUTO_1': 1, 'SHOOT_TUTO_0': 1, 'SHOOT_TUTO_1': 1,
+	'MOVE': 0, 'WHISPER': 0, 'USE_ITEM': 0,
+	'CHECK_BATTERY': 0, 'CHECK_AMMO': 0, 'RELOAD_FLAMER': 0,
+
+	/* Mush actions */
+	'CREATE_SPORE': 3, 'GO_BERSERK': 3, 'EAT_SPORE': 0,
+	'INFECT': 1, 'MASS_GGEDON': 2, 'SLIME_TRAP': 1, 'DEPRESS': 2, 'GIVE_NIGHTMARE': 0, 'EXCHANGE_BODY': 0, 'SCREW_TALKY': 3, 'GIVE_DISEASE': 2,
+	'TRAP_CLOSET': 1, 'SPREAD_FIRE': 4, 'SABOTAGE': 1, 'DOOR_SABOTAGE': 0, 'MIX_RATION_SPORE': 0, 'MUSH_CARESS': 1, 'SLIME_OBJECT': 1, 'DELOG': 2, 'NERON_DEPRESS': 3
+};
 
 if (document.domain == 'mush.vg') {
 	var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Planton', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
@@ -91,6 +142,7 @@ if (document.domain == 'mush.vg') {
 		checkTransferred: "a transféré dans %1 en %2",
 		checkIsMush: "depuis %1",
 		checkStolen: "corps volé par %1 en %2",
+		checkPirated: ", talkie piraté en %1",
 
 		//charMovements()
 		movementsAnalysisButton: "Analyse des déplacements",
@@ -159,6 +211,7 @@ if (document.domain == 'mush.vg') {
 		//Personal logs analysis
 		logsAnalysisButton: "Analyse des logs",
 		skillsTitle: "<b>Compétences :</b> ",
+		statusTitle: "<b>Statut :</b> ",
 		noSkills: "aucune.",
 	};
 }
@@ -171,6 +224,7 @@ else {
 		checkTransferred: "transferred into %1 in %2",
 		checkIsMush: "since %1",
 		checkStolen: "body stolen by %1 in %2",
+		checkPirated: ", talky pirated in %1",
 
 		//charMovements()
 		movementsAnalysisButton: "Movements analysis",
@@ -238,6 +292,7 @@ else {
 
 		//Personal logs analysis
 		logsAnalysisButton: "Logs analysis",
+		statusTitle: "<b>Status:</b> ",
 		skillsTitle: "<b>Skills:</b> ",
 		noSkills: "none.",
 	};
@@ -246,7 +301,7 @@ else {
 
 function addGlobalStyle(css) {
 	$('<style>').attr('type', 'text/css').html(css).appendTo($('head'));
-}
+};
 
 function loadXMLDoc(url, callback, params) { //params is an object
 	GM_xmlhttpRequest({
@@ -255,7 +310,7 @@ function loadXMLDoc(url, callback, params) { //params is an object
 			callback(request, params);
 		}
 	});
-}
+};
 
 function fetchGeneralLogs(id, callback) {
 	loadXMLDoc('http://' + document.domain + id, function(request) {
@@ -275,40 +330,81 @@ function fetchGeneralLogs(id, callback) {
 			callback(request);
 		}
 	}, {});
-}
+};
+
+function checkStatus(textLog) {
+	var status;
+	var wasPirated = [false];
+	var vaccinated = /<em>(.*)<\/em>.*\[EV:LEAVED_MUSH\]/.exec(textLog);
+	var transferred = /<em>(.*)<\/em>.*\{TRANSFERED TO (.*)\}/.exec(textLog);
+	var isMush = /<em>(.*)<\/em>.*\[EV:PARASITED_PASSIVE_TRIUMPH_EARNED\]/.exec(textLog);
+	var stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
+	var pirated = /<em>(.*)<\/em>.*HAD HIS TALKY PIRATED/.test(textLog)
+
+	if (vaccinated) {
+		status = ['vaccinated', vaccinated[1]];
+	}
+	else if (transferred) {
+		status = ['transferred', transferred[1], transferred[2]];
+	}
+	else if (isMush) {
+		status = ['mush', isMush[1]];
+	}
+	else if (stolen) {
+		status = ['stolen', stolen[1], stolen[2]];
+	}
+	else {
+		status = ['human'];
+	}
+
+	if (pirated) {
+		wasPirated = [true, pirated[1]];
+	}
+
+	return [status, wasPirated];
+};
 
 function displayTreatment(request, params) {
 	if (request.readyState == 4 && request.status == 200) {
 		var textLog = request.responseText;
 		var icoDiv = $('<div>').addClass('inlineBut').insertBefore('[data-id="' + params.id + '"] .cdDate');
 
-		var vaccinated = /<em>(.*)<\/em>.*\[EV:LEAVED_MUSH\]/.exec(textLog);
-		var transferred = /<em>(.*)<\/em>.*\{TRANSFERED TO (.*)\}/.exec(textLog);
-		var isMush = /<em>(.*)<\/em>.*\[EV:PARASITED_PASSIVE_TRIUMPH_EARNED\]/.exec(textLog);
-		var stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
+		var status = checkStatus(textLog);
 
-		if (vaccinated) {
-			var text = TXT.checkVaccinated.replace('%1', vaccinated[1]);
-			$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text(text).appendTo(icoDiv);
+		switch (status[0][0]) {
+			case 'vaccinated':
+				var text = TXT.checkVaccinated.replace('%1', status[0][1]);
+				$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
+				$('<span>').text(text).appendTo(icoDiv);
+				break;
+
+			case 'transferred':
+				var text = TXT.checkTransferred.replace('%1', status[0][2]).replace('%2', status[0][1]);
+				$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
+				$('<span>').text(text).appendTo(icoDiv);
+				break;
+
+			case 'mush':
+				var text = TXT.checkIsMush.replace('%1', status[0][1]);
+				$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
+				$('<span>').text(text).appendTo(icoDiv);
+				break;
+
+			case 'stolen':
+				var text = TXT.checkStolen.replace('%1', status[0][2]).replace('%2', status[0][1]);
+				$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
+				$('<span>').text(text).appendTo(icoDiv);
+				break;
+
+			case 'human':
+			default:
+				$('<img>').attr('src', '/img/icons/ui/p_alive.png').appendTo(icoDiv);
+				break;
 		}
-		else if (transferred) {
-			var text = TXT.checkTransferred.replace('%1', transferred[2]).replace('%2', transferred[1]);
-			$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(icoDiv);
+
+		if (status[1][0]) {
+			var text = TXT.checkPirated.replace('%1', status[1][1]);
 			$('<span>').text(text).appendTo(icoDiv);
-		}
-		else if (isMush) {
-			var text = TXT.checkIsMush.replace('%1', isMush[1]);
-			$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text(text).appendTo(icoDiv);
-		}
-		else if (stolen) {
-			var text = TXT.checkStolen.replace('%1', stolen[2]).replace('%2', stolen[1]);
-			$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(icoDiv);
-			$('<span>').text(text).appendTo(icoDiv);
-		}
-		else {
-			$('<img>').attr('src', '/img/icons/ui/p_alive.png').appendTo(icoDiv);
 		}
 	}
 	$('[src*="/img/icons/ui/loading1.gif"]').remove();
@@ -1286,6 +1382,46 @@ function start() {
 						}
 					}
 				});
+
+				//Mush/human & pirated status
+				var status = checkStatus(logs.find('.cdUserlogs').html());
+				var statusDiv = $('<div>').html(TXT.statusTitle).css('font-size', '0.9em').appendTo(topDiv);
+
+				switch (status[0][0]) {
+					case 'vaccinated':
+						var text = TXT.checkVaccinated.replace('%1', status[0][1]);
+						$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(statusDiv);
+						$('<span>').text(text).appendTo(statusDiv);
+						break;
+
+					case 'transferred':
+						var text = TXT.checkTransferred.replace('%1', status[0][2]).replace('%2', status[0][1]);
+						$('<img>').attr('src', '/img/icons/ui/p_alive.png').css('margin-right', '3px').appendTo(statusDiv);
+						$('<span>').text(text).appendTo(statusDiv);
+						break;
+
+					case 'mush':
+						var text = TXT.checkIsMush.replace('%1', status[0][1]);
+						$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(statusDiv);
+						$('<span>').text(text).appendTo(statusDiv);
+						break;
+
+					case 'stolen':
+						var text = TXT.checkStolen.replace('%1', status[0][2]).replace('%2', status[0][1]);
+						$('<img>').attr('src', '/img/icons/ui/p_mush.png').css('margin-right', '3px').appendTo(statusDiv);
+						$('<span>').text(text).appendTo(statusDiv);
+						break;
+
+					case 'human':
+					default:
+						$('<img>').attr('src', '/img/icons/ui/p_alive.png').appendTo(statusDiv);
+						break;
+				}
+
+				if (status[1][0]) {
+					var text = TXT.checkPirated.replace('%1', status[1][1]);
+					$('<span>').text(text).appendTo(statusDiv);
+				}
 
 				//Skills result
 				skills = ((skills.length) ? skills.reverse().join(", ") : TXT.noSkills);
