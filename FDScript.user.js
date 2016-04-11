@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.6
+// @version  1.3.7
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -339,7 +339,7 @@ function checkStatus(textLog) {
 	var transferred = /<em>(.*)<\/em>.*\{TRANSFERED TO (.*)\}/.exec(textLog);
 	var isMush = /<em>(.*)<\/em>.*\[EV:PARASITED_PASSIVE_TRIUMPH_EARNED\]/.exec(textLog);
 	var stolen = /<em>(.*)<\/em>.*\{WAS FORCED TO TRANSFER WITH (.*)\}/.exec(textLog);
-	var pirated = /<em>(.*)<\/em>.*HAD HIS TALKY PIRATED/.test(textLog)
+	var pirated = /<em>(.*)<\/em>.*HAD HIS TALKY PIRATED/.exec(textLog)
 
 	if (vaccinated) {
 		status = ['vaccinated', vaccinated[1]];
