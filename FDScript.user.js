@@ -27,7 +27,8 @@
    - Defaced rooms,
    - Hunter waves,
    - Mycoalarms ringing,
-   - PILGRED repair.
+   - PILGRED repair,
+   - Cycle and cause of death of heroes.
  * Map of a character's movements:
    - Separation by rooms,
    - Includes room logs and personal logs,
@@ -154,6 +155,7 @@ if (document.domain == 'mush.vg') {
 
 		//generalAnalysis()
 		generalAnalysisButton: "Analyse des logs généraux",
+		noDeaths: "aucune.",
 		noPILGRED: "non.",
 		noWaves: "aucune.",
 		noPerished: "jamais.",
@@ -166,6 +168,9 @@ if (document.domain == 'mush.vg') {
 		defacedTitle: "<b>Pièces dialoguées :</b> ",
 		alarmsTitle: "<b>Sonneries d'alarmes :</b> ",
 		PILGREDTitle: "<b>PILGRED réparé :</b> ",
+		deathsTitle: "<b>Morts :</b> ",
+		deathsOxygen: "Asphyxie",
+		deathsNotaBene: "<em>(Sol, l'Éden et l'échange aux marchands ne sont pas considérés comme des morts.)</em>",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -236,6 +241,7 @@ else {
 
 		//generalAnalysis()
 		generalAnalysisButton: "General logs analysis",
+		noDeaths: "none.",
 		noPILGRED: "no.",
 		noWaves: "none.",
 		noPerished: "never.",
@@ -248,6 +254,9 @@ else {
 		defacedTitle: "<b>Defaced rooms:</b> ",
 		alarmsTitle: "<b>Mycoalarms ringing:</b> ",
 		PILGREDTitle: "<b>PILGRED repaired:</b> ",
+		deathsTitle: "<b>Deaths:</b> ",
+		deathsOxygen: "Lack of oxygen",
+		deathsNotaBene: "<em>(Sol, Eden and being exchanged do not count as deaths.)</em>",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -809,6 +818,7 @@ function generalAnalysis(shipDiv, id) {
 	var alarms = [];
 	var shrink = {};
 	var PILGRED = TXT.noPILGRED;
+	var deaths = [];
 
 	generalLogs[id].find('> div > div > div').each(function() {
 		var html = $(this).html().replace('&amp;eacute;', 'é');
@@ -848,6 +858,12 @@ function generalAnalysis(shipDiv, id) {
 				shrink[char] = [];
 			}
 			shrink[char].push(date);
+		}
+		else if (/EV:NERON_HERO_DEATH/.test(html)) {
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(html)[0], /«(.*)»/.exec(html)[1].replace(/&nbsp;/g, '')]); //Cycle, hero, death
+		}
+		else if (/EV:OXY_LOW_DAMMIT/.test(html)) {
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(html)[0], TXT.deathsOxygen]); //Cycle, hero, death
 		}
 	});
 
@@ -893,6 +909,19 @@ function generalAnalysis(shipDiv, id) {
 	$('<div>').html(TXT.defacedTitle + defaced).appendTo(shipDiv);
 	$('<div>').html(TXT.alarmsTitle + alarms).appendTo(shipDiv);
 	$('<div>').html(TXT.PILGREDTitle + PILGRED).appendTo(shipDiv);
+
+	var deathsDiv = $('<div>').html(TXT.deathsTitle).appendTo(shipDiv);
+	if (!deaths.length) {
+		deathsDiv.append(TXT.noDeaths);
+	}
+	else {
+		var deathsUl = $('<ul>').appendTo(deathsDiv);
+		deaths = deaths.reverse();
+		for (var i = 0; i < deaths.length; i++) {
+			$('<li>').css('display', 'list-item').html('<em>' + deaths[i][0] + '</em> ' + deaths[i][1] + ' (' + deaths[i][2] + ')').appendTo(deathsUl);
+		}
+	}
+	deathsDiv.append(TXT.deathsNotaBene);
 }
 
 function evaluateSin(qualif) {
