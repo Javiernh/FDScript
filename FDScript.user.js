@@ -170,7 +170,9 @@ if (document.domain == 'mush.vg') {
 		PILGREDTitle: "<b>PILGRED réparé :</b> ",
 		deathsTitle: "<b>Morts :</b> ",
 		deathsOxygen: "Asphyxie",
-		deathsNotaBene: "<em>(Sol, l'Éden et l'échange aux marchands ne sont pas considérés comme des morts.)</em>",
+		deathsAll: "Tous les autres",
+		deathsSol: "Retour sur Sol",
+		deathsEden: "Voyage vers l'Éden",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -256,7 +258,9 @@ else {
 		PILGREDTitle: "<b>PILGRED repaired:</b> ",
 		deathsTitle: "<b>Deaths:</b> ",
 		deathsOxygen: "Lack of oxygen",
-		deathsNotaBene: "<em>(Sol, Eden and being exchanged do not count as deaths.)</em>",
+		deathsAll: "All others",
+		deathsSol: "Returned to Sol",
+		deathsEden: "Travelled to Eden",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -865,6 +869,12 @@ function generalAnalysis(shipDiv, id) {
 		else if (/EV:OXY_LOW_DAMMIT/.test(html)) {
 			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(html)[0], TXT.deathsOxygen]); //Cycle, hero, death
 		}
+		else if (/SET_PILGRED_TO_SOL/.test(html)) {
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], TXT.deathsAll, TXT.deathsSol]); //Cycle, hero, death
+		}
+		else if (/SET_PILGRED_TO_EDEN/.test(html)) {
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], TXT.deathsAll, TXT.deathsEden]); //Cycle, hero, death
+		}
 	});
 
 	//Result
@@ -921,7 +931,6 @@ function generalAnalysis(shipDiv, id) {
 			$('<li>').css('display', 'list-item').html('<em>' + deaths[i][0] + '</em> ' + deaths[i][1] + ' (' + deaths[i][2] + ')').appendTo(deathsUl);
 		}
 	}
-	deathsDiv.append(TXT.deathsNotaBene);
 }
 
 function evaluateSin(qualif) {
