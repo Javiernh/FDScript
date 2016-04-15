@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.7
+// @version  1.3.8
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -28,15 +28,15 @@
    - Hunter waves,
    - Mycoalarms ringing,
    - PILGRED repair,
-   - Cycle and cause of death of heroes.
+   - Cycle and cause of death of heroes (fixed).
  * Map of a character's movements:
    - Separation by rooms,
    - Includes room logs and personal logs,
-   - Tells who was already here,
+   - Shows who was already here,
    - Popup is draggable, resizeable and z-indexable.
    - New: More than one popup possible.
-   - Fix: Dead characters no longer considered present (see below).
-   - Fix: The script copy of the general logs has death announcements back to their right place.
+   - Fix: Dead characters supposedly no longer considered present (see below).
+   - Fix: The script copy of the general logs tries putting death announcements back to their right place.
    - Fix: Corrupted data is reloaded (rare but easily detected).
  * All private channels window:
    - Char mugshots on joining/leaving,
@@ -826,6 +826,7 @@ function generalAnalysis(shipDiv, id) {
 
 	generalLogs[id].find('> div > div > div').each(function() {
 		var html = $(this).html().replace('&amp;eacute;', 'é');
+		var text = $(this).text();
 		if (/EV:HUNTER_WAVE_INC/.test(html)) {
 			waves.push(/[0-9]+\.[0-9]+/.exec(html)[0]);
 		}
@@ -847,8 +848,8 @@ function generalAnalysis(shipDiv, id) {
 		else if (/EV:PSY_SESSION/.test(html)) {
 			var date = /[0-9]+\.[0-9]+/.exec(html)[0];
 			var charEx = /Jin Su|Frieda|Kuan Ti|Janice|Roland|Hua|Paola|Chao|Finola|Stephen|Ian|Chun|Raluca|Gioele|Eleesha|Terrence|Derek|Andie/g;
-			var charA = charEx.exec(html)[0];
-			var charB = charEx.exec(html)[0]; //A second call to exec() gets the next char
+			var charA = charEx.exec(text)[0];
+			var charB = charEx.exec(text)[0]; //A second call to exec() gets the next char
 
 			//Determine which char is being cured
 			if (/EV:PSY_SESSION_SUCCESS/.test(html)) {
@@ -864,10 +865,10 @@ function generalAnalysis(shipDiv, id) {
 			shrink[char].push(date);
 		}
 		else if (/EV:NERON_HERO_DEATH/.test(html)) {
-			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(html)[0], /«(.*)»/.exec(html)[1].replace(/&nbsp;/g, '')]); //Cycle, hero, death
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(text)[0], /[«\(](.*)[»\)]/.exec(text)[1].trim()]); //Cycle, hero, death
 		}
 		else if (/EV:OXY_LOW_DAMMIT/.test(html)) {
-			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(html)[0], TXT.deathsOxygen]); //Cycle, hero, death
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(text)[0], TXT.deathsOxygen]); //Cycle, hero, death
 		}
 		else if (/SET_PILGRED_TO_SOL/.test(html)) {
 			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], TXT.deathsAll, TXT.deathsSol]); //Cycle, hero, death
