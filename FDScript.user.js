@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.4.2
+// @version  1.4.3
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -331,17 +331,30 @@ function addGlobalStyle(css) {
 	$('<style>').attr('type', 'text/css').html(css).appendTo($('head'));
 };
 
-function loadXMLDoc(url, callback, params) { //params is an object
+function loadURL(url, callback, params) { //params is an object, optional
+	try{
+	if (typeof params == 'undefined') {
+		var params = {};
+	}
 	GM_xmlhttpRequest({
 		method: 'GET', url: url,
 		onload: function(request) {
 			callback(request, params);
+		},
+		onerror: function(url) {
+			console.log("FDScript: call to url '" + url + "' has failed, DEBUG:");
+			console.log([response.status, response.statusText, response.readyState].join("\n"));
+			console.log('** END DEBUG **');
+		},
+		ontimeout: function(url) {
+			console.log("FDScript: call to url '" + url + "' has timed out");
 		}
 	});
+	}catch(e){console.log(e);}
 };
 
 function fetchGeneralLogs(id, callback) {
-	loadXMLDoc('http://' + document.domain + id, function(request) {
+	loadURL('http://' + document.domain + id, function(request) {
 		if (request.readyState == 4 && request.status == 200) {
 			generalLogs[id] = $(request.responseText);
 			//Put death announcements in the right place (when they're not caused by cycle change, they can be misplaced several cycles after)
@@ -357,7 +370,7 @@ function fetchGeneralLogs(id, callback) {
 			console.log('fetched & processed general logs from ' + id);
 			callback(request);
 		}
-	}, {});
+	});
 };
 
 function checkStatus(textLog) {
@@ -1027,25 +1040,21 @@ function start() {
 		if (isMod) {
 			var accountStatusBlock = $('<div>').html(TXT.modsAccountStatus + "<img class='cdLoading' src='/img/icons/ui/loading1.gif' alt='loading…' />").insertAfter(block.find('.cdDate').next());
 			console.log(block.attr('data-FDScriptAccUrl'));
-			GM_xmlhttpRequest({
-				method: 'GET',
-				url: block.attr('data-FDScriptAccUrl'),
-				onload: function(content) {
-					try{
-					console.log('----------------------');
-					console.log(content.responseText);
-					if (/<div class=['"]error['"]>/.test(content.responseText)) {
-						console.log('STATUS: DELETED');
-						block.css('border', '5px red solid');
-						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusDeleted);
-					}
-					else {
-						console.log('STATUS: ACTIVE');
-						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusActive);
-					}
-					console.log('----------------------');
-					}catch(e){console.log(e);}
+			loadURL(block.attr('data-FDScriptAccUrl'), function(content) {
+				console.log('----------------------');
+				try{
+				console.log(content.responseText);
+				if (/<div class=['"]error['"]>/.test(content.responseText)) {
+					console.log('STATUS: DELETED');
+					block.css('border', '5px red solid');
+					accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusDeleted);
 				}
+				else {
+					console.log('STATUS: ACTIVE');
+					accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusActive);
+				}
+				}catch(e){console.log(e);}
+				console.log('----------------------');
 			});
 		}
 
@@ -1098,7 +1107,7 @@ function start() {
 			type: 'button', value: 'Check', 'data-histolink': histoLink, 'data-block-id': block.attr('data-id')
 		}).addClass('butbg').on('click', function() {
 			$(this).prepend($('<img>').attr('src', '/img/icons/ui/loading1.gif'));
-			loadXMLDoc($(this).attr('data-histolink'), displayTreatment, { id: $(this).attr('data-block-id') });
+			loadURL($(this).attr('data-histolink'), displayTreatment, { id: $(this).attr('data-block-id') });
 			$(this).prop('disabled', true);
 		}).appendTo(plainteeDiv);
 
