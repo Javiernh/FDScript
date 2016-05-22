@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.4
+// @version  1.4.1
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -1010,6 +1010,7 @@ function addMembersToLog(members, log) {
 
 function start() {
 	console.log('FDScript: starting');
+	console.log('****** BEGIN DEBUG 2 ******');
 	var currentShip = -1;
 	var ships = [];
 	var currShip = 0;
@@ -1025,11 +1026,11 @@ function start() {
 		//Mods only: check if account still exists, part 2
 		if (isMod) {
 			var accountStatusBlock = $('<div>').html(TXT.modsAccountStatus + "<img class='cdLoading' src='/img/icons/ui/loading1.gif' alt='loading…' />").insertAfter(block.find('.cdDate').next());
+			console.log(block.attr('data-FDScriptAccUrl'));
 			GM_xmlhttpRequest({
 				method: 'GET',
 				url: block.attr('data-FDScriptAccUrl'),
 				onload: function(content) {
-						console.log(content.responseText);
 					if (/<div class=['"]error['"]>/.test(content.responseText)) {
 						block.css('border', '5px red solid');
 						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusDeleted);
@@ -1104,6 +1105,7 @@ function start() {
 		//Separator
 		$('<div>').addClass('divSep').hide().appendTo(block.parent());
 	});
+	console.log('****** END DEBUG 2 ******');
 	console.log('FDScript: found ' + reports + ' reports in ' + ships.length + ' ships');
 
 	//Add a couple classes for selection optimization
@@ -1638,7 +1640,7 @@ if ($('.pol2.fds_bloc').length) { //Moderators
 	//Mods only: check if account still exists, part 1
 	//No jQuery, it neutralizes injected JS
 	var modsAccountHeadScript = document.createElement('script');
-	modsAccountHeadScript.innerHTML = "$('.fds_control_bloc:not(.FDScripted)').each(function() { var plainteeID = $(this).find('.tid_user').eq(1).attr('tid_id'); $(this).attr('data-FDScriptAccUrl', _tid.makeUrl('/mod/userMenu/' + plainteeID, { _id: 'tid_2', jsm: '1', lang: 'fr' })); });";
+	modsAccountHeadScript.innerHTML = "console.log('****** BEGIN DEBUG 1 ******'); $('.fds_control_bloc:not(.FDScripted)').each(function() { var plainteeID = $(this).find('.tid_user').eq(1).attr('tid_id'); $(this).attr('data-FDScriptAccUrl', _tid.makeUrl('/mod/userMenu/' + plainteeID, { _id: 'tid_2', jsm: '1', lang: 'fr' })); console.log($(this).attr('data-FDScriptAccUrl')); }); console.log('****** END DEBUG 1 ******');";
 	document.head.appendChild(modsAccountHeadScript);
 
 	$('<button>').text(TXT.modsHideMush).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
