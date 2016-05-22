@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.3.8
+// @version  1.4
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -17,7 +17,7 @@
 
  * DONE
  * Personal logs analysis:
-   - Highlight: getting dirty, showers, becoming Mush, transfer (both sides), cured Mush, mutation, talkie pirating, taking skills (own skills, magebook and Apprentice), +some moral sources,
+   - Highlight: getting dirty, showers, becoming Mush, transfer (both sides), cured Mush, mutation, talkie pirating, taking skills (own skills, magebook and Apprentice), active moral sources,
    - Mush/human + pirated status,
    - List of skills and the cycle they were chosen,
    - Character's name is not red anymore (too heavy).
@@ -28,7 +28,8 @@
    - Hunter waves,
    - Mycoalarms ringing,
    - PILGRED repair,
-   - Cycle and cause of death of heroes (fixed).
+   - Cycle and cause of death of heroes and of the cat (fixed),
+   - Ship titles.
  * Map of a character's movements:
    - Separation by rooms,
    - Includes room logs and personal logs,
@@ -43,12 +44,12 @@
    - Sort by character(s) (OR/AND toggle),
    - Cycles in italics for moar prettiness.
  * Fix by-ship reports sorting.
- * Separation of the different private channels (with mugshots), general announcements and missions.
- * Sanctions are sorted by categories, and by number of points inside categories, +suicide grouped with negativity.
+ * Separation of the different private channels (with mugshots and NEW: show/hide channels individually), general announcements and missions.
+ * Sanctions are sorted by categories, and by number of points inside categories, suicide grouped with negativity.
  * Setting for auto height of logs.
  * Expedition links open in a new tab.
  * New: wall-reversing button for main and Mush channels.
- * Moderators: The script is not automatic, +button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship, AP count.
+ * Moderators: The script is not automatic, button to hide Mush icons and pseudos to prevent spoiling if the mod is in a ship, AP count, account-still-exists check.
  * English translation.
  * Optimized! (a bit)
  * Easter egg!
@@ -135,7 +136,7 @@ var actions = {
 };
 
 if (document.domain == 'mush.vg') {
-	var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Planton', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
+	var rooms = ['Pont', 'Baie Alpha', 'Baie Beta', 'Baie Alpha 2', 'Nexus', 'Infirmerie', 'Laboratoire', 'Réfectoire', 'Jardin Hydroponique', 'Salle des moteurs', 'Tourelle Alpha avant', 'Tourelle Alpha centre', 'Tourelle Alpha arrière', 'Tourelle Beta avant', 'Tourelle Beta centre', 'Tourelle Beta arrière', 'Patrouilleur Longane', 'Patrouilleur Jujube', 'Patrouilleur Tamarin', 'Patrouilleur Socrate', 'Patrouilleur Epicure', 'Patrouilleur Platon', 'Patrouilleur Wallis', 'Pasiphae', 'Couloir avant', 'Couloir central', 'Couloir arrière', 'Planète', 'Baie Icarus', 'Dortoir Alpha', 'Dortoir Beta', 'Stockage Avant', 'Stockage Alpha centre', 'Stockage Alpha arrière', 'Stockage Beta centre', 'Stockage Beta arrière', 'Espace infini', 'Les Limbes'];
 
 	var TXT = {
 		//displayTreatment()
@@ -173,6 +174,10 @@ if (document.domain == 'mush.vg') {
 		deathsAll: "Tous les autres",
 		deathsSol: "Retour sur Sol",
 		deathsEden: "Voyage vers l'Éden",
+		titlesTitle: "<b>Titres :</b> ",
+		titleCommander: "Commandant",
+		titleComms: "Resp. Communications",
+		titleNERON: "Admin. NERON",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -192,6 +197,9 @@ if (document.domain == 'mush.vg') {
 		modsHideMush: "Cacher/révéler les Mushs",
 		modsHidePseudos: "Cacher/révéler les pseudos",
 		modsAPCount: "<em>(Mode modo)</em> <b>Énergie utilisée :</b> ~%1 PA",
+		modsAccountStatus: "<em>(Mode modo)</em> <b>Compte plainté :</b> ",
+		modsAccountStatusActive: "actif",
+		modsAccountStatusDeleted: "<em>supprimé</em>",
 		scriptVersion: "Version du FDScript : ",
 
 		//Reports sorting
@@ -261,6 +269,10 @@ else {
 		deathsAll: "All others",
 		deathsSol: "Returned to Sol",
 		deathsEden: "Travelled to Eden",
+		titlesTitle: "<b>Titles:</b> ",
+		titleCommander: "Commander",
+		titleComms: "Comms manager",
+		titleNERON: "NERON Admin",
 
 		//evaluateSin()
 		sinNothingReg: /Rien/,
@@ -280,6 +292,9 @@ else {
 		modsHideMush: "Hide/show Mushs",
 		modsHidePseudos: "Hide/show pseudos",
 		modsAPCount: "<em>(Mods only)</em> <b>Energy spent:</b> ~%1 AP",
+		modsAccountStatus: "<em>(Mods only)</em> <b>Plaintee account:</b> ",
+		modsAccountStatusActive: "active",
+		modsAccountStatusDeleted: "<em>deleted</em>",
 		scriptVersion: "FDScript version: ",
 
 		//Reports sorting
@@ -823,6 +838,9 @@ function generalAnalysis(shipDiv, id) {
 	var shrink = {};
 	var PILGRED = TXT.noPILGRED;
 	var deaths = [];
+	var commanders = [];
+	var commsTitles = [];
+	var NERONTitles = [];
 
 	generalLogs[id].find('> div > div > div').each(function() {
 		var html = $(this).html().replace('&amp;eacute;', 'é');
@@ -864,6 +882,18 @@ function generalAnalysis(shipDiv, id) {
 			}
 			shrink[char].push(date);
 		}
+		else if (/EV:TITLE_MOVE/.test(html)) {
+			var title = /«(.*)»/.exec(text)[1].trim();
+			if (title == TXT.titleCommander) {
+				commanders.push(charRegexp.exec(text)[0] + " (" + /[0-9]+\.[0-9]+/.exec(html)[0] + ")");
+			}
+			else if (title == TXT.titleComms) {
+				commsTitles.push(charRegexp.exec(text)[0] + " (" + /[0-9]+\.[0-9]+/.exec(html)[0] + ")");
+			}
+			else if (title == TXT.titleNERON) {
+				NERONTitles.push(charRegexp.exec(text)[0] + " (" + /[0-9]+\.[0-9]+/.exec(html)[0] + ")");
+			}
+		}
 		else if (/EV:NERON_HERO_DEATH/.test(html)) {
 			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], charRegexp.exec(text)[0], /[«\(](.*)[»\)]/.exec(text)[1].trim()]); //Cycle, hero, death
 		}
@@ -875,6 +905,9 @@ function generalAnalysis(shipDiv, id) {
 		}
 		else if (/SET_PILGRED_TO_EDEN/.test(html)) {
 			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], TXT.deathsAll, TXT.deathsEden]); //Cycle, hero, death
+		}
+		else if (/EV:CAT_DEAD/.test(html)) {
+			deaths.push([/[0-9]+\.[0-9]+/.exec(html)[0], "Schrödinger", " so sad :( "]);
 		}
 	});
 
@@ -921,7 +954,7 @@ function generalAnalysis(shipDiv, id) {
 	$('<div>').html(TXT.alarmsTitle + alarms).appendTo(shipDiv);
 	$('<div>').html(TXT.PILGREDTitle + PILGRED).appendTo(shipDiv);
 
-	var deathsDiv = $('<div>').html(TXT.deathsTitle).appendTo(shipDiv);
+	var deathsDiv = $('<div>').addClass('FDScript-analysisDiv').html(TXT.deathsTitle).appendTo(shipDiv);
 	if (!deaths.length) {
 		deathsDiv.append(TXT.noDeaths);
 	}
@@ -929,9 +962,15 @@ function generalAnalysis(shipDiv, id) {
 		var deathsUl = $('<ul>').appendTo(deathsDiv);
 		deaths = deaths.reverse();
 		for (var i = 0; i < deaths.length; i++) {
-			$('<li>').css('display', 'list-item').html('<em>' + deaths[i][0] + '</em> ' + deaths[i][1] + ' (' + deaths[i][2] + ')').appendTo(deathsUl);
+			$('<li>').html(deaths[i][0] + " : " + deaths[i][1] + ' (' + deaths[i][2] + ')').appendTo(deathsUl);
 		}
 	}
+
+	var titlesDiv = $('<div>').addClass('FDScript-analysisDiv').html(TXT.titlesTitle).appendTo(shipDiv);
+	var titlesUl = $('<ul>').appendTo(titlesDiv);
+	$('<li>').html("<b>" + TXT.titleCommander + "</b> : " + commanders.reverse().join(", ") + ".").appendTo(titlesUl);
+	$('<li>').html("<b>" + TXT.titleComms + "</b> : " + commsTitles.reverse().join(", ") + ".").appendTo(titlesUl);
+	$('<li>').html("<b>" + TXT.titleNERON + "</b> : " + NERONTitles.reverse().join(", ") + ".").appendTo(titlesUl);
 }
 
 function evaluateSin(qualif) {
@@ -982,6 +1021,25 @@ function start() {
 		var block = $(this);
 		block.addClass('FDScripted');
 		var histoLink = '';
+
+		//Mods only: check if account still exists, part 2
+		if (isMod) {
+			var accountStatusBlock = $('<div>').html(TXT.modsAccountStatus + "<img class='cdLoading' src='/img/icons/ui/loading1.gif' alt='loading…' />").insertAfter(block.find('.cdDate').next());
+			GM_xmlhttpRequest({
+				method: 'GET',
+				url: block.attr('data-FDScriptAccUrl'),
+				onload: function(content) {
+						console.log(content.responseText);
+					if (/<div class=['"]error['"]>/.test(content.responseText)) {
+						block.css('border', '5px red solid');
+						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusDeleted);
+					}
+					else {
+						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusActive);
+					}
+				}
+			});
+		}
 
 		//Get plaintee histoLink
 		var plainteeDiv = block.find('.inl-blck').eq(1);
@@ -1228,7 +1286,7 @@ function start() {
 		});
 	});
 
-	//Player logs analysis
+	//Check all popups
 	setInterval(function() {
 		//Reverse wall (eventually)
 		var wall = $('.cdWalls:not(.FDScripted)').filter(':visible');
@@ -1495,6 +1553,7 @@ function start() {
 			if (privates.length) {
 				$('<button>').text(TXT.channelsAnalysisButton).addClass('butbg inlineBut').css('margin-left', '10px').appendTo(topDiv).on('click', function() {
 					var bugged = false;
+					var channelsParent = privates.find('> div');
 					var number = 0;
 					var members = [];
 					var index = 0;
@@ -1530,8 +1589,9 @@ function start() {
 							if (!channels[i].length) { //Last "channel" (empty)
 								continue;
 							}
-							var channel = $('<div>').css({ padding: '5px 0', margin: '5px 0', borderBottom: '2px dotted red' }).appendTo(privates.find('> div'));
-							$('<h3>').text(TXT.channelTitle + (i + 1)).appendTo(channel);
+							var title = $('<h3>').css({ borderTop: '2px dotted red', marginTop: '5px', fontSize: '1.5em' }).text(TXT.channelTitle + (i + 1) + ' ').appendTo(channelsParent);
+							$('<span>').text("+-").css({ textDecoration: 'underline', cursor: 'pointer' }).on('click', function() { $(this).parent().next().slideToggle(); }).appendTo(title);
+							var channel = $('<div>').css({ padding: '5px 0', margin: '0', marginBottom: '5px' }).appendTo(channelsParent);
 							for (var j = 0; j < channels[i].length; j++) {
 								channels[i][j].appendTo(channel);
 							}
@@ -1569,10 +1629,18 @@ addGlobalStyle(".FDScript-popup strong { color: #F13; }");
 addGlobalStyle(".FDScript-channelChar.off { opacity: 0.4; }");
 addGlobalStyle(".FDScript-titlebar { padding: 1em 1em 0 0; }");
 addGlobalStyle(".FDScript-titlebar > * { vertical-align: middle; }");
+addGlobalStyle(".FDScript-analysisDiv { margin: 5px 0; }");
+addGlobalStyle(".FDScript-analysisDiv li { display: list-item; list-style-image: url('/img/icons/ui/point.png'); margin-left: 20px; }");
 
 
 if ($('.pol2.fds_bloc').length) { //Moderators
 	isMod = true;
+	//Mods only: check if account still exists, part 1
+	//No jQuery, it neutralizes injected JS
+	var modsAccountHeadScript = document.createElement('script');
+	modsAccountHeadScript.innerHTML = "$('.fds_control_bloc:not(.FDScripted)').each(function() { var plainteeID = $(this).find('.tid_user').eq(1).attr('tid_id'); $(this).attr('data-FDScriptAccUrl', _tid.makeUrl('/mod/userMenu/' + plainteeID, { _id: 'tid_2', jsm: '1', lang: 'fr' })); });";
+	document.head.appendChild(modsAccountHeadScript);
+
 	$('<button>').text(TXT.modsHideMush).addClass('butbg inlineBut').insertBefore($('.cdRecTgtComplaint')).on('click', function() {
 		var noMushCss = $('#FDScript-noMush');
 		if (noMushCss.length) {
