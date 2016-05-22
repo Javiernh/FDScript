@@ -3,7 +3,7 @@
 // @include  http://mush.vg/fds*
 // @include  http://mush.twinoid.com/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
-// @version  1.4.1
+// @version  1.4.2
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
@@ -1031,13 +1031,20 @@ function start() {
 				method: 'GET',
 				url: block.attr('data-FDScriptAccUrl'),
 				onload: function(content) {
+					try{
+					console.log('----------------------');
+					console.log(content.responseText);
 					if (/<div class=['"]error['"]>/.test(content.responseText)) {
+						console.log('STATUS: DELETED');
 						block.css('border', '5px red solid');
 						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusDeleted);
 					}
 					else {
+						console.log('STATUS: ACTIVE');
 						accountStatusBlock.html(TXT.modsAccountStatus + TXT.modsAccountStatusActive);
 					}
+					console.log('----------------------');
+					}catch(e){console.log(e);}
 				}
 			});
 		}
