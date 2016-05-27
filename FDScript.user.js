@@ -230,6 +230,105 @@ if (document.domain == 'mush.vg') {
 		noSkills: "aucune.",
 	};
 }
+else if (document.domain == 'mush.twinoid.es') {
+	var rooms = ['Puente de mando', 'Plataforma Alpha', 'Plataforma Beta', 'Plataforma Alpha 2', 'Nexus', 'Enfermería', 'Laboratorio', 'Comedor', 'Jardín Hidropónico', 'Sala de motores',
+		'Cañón Alpha delantero', 'Cañón Alpha central', 'Cañón Alpha trasero', 'Cañón Beta delantero', 'Cañón Beta central', 'Cañón Beta trasero',
+		'Patrullero Longane', 'Patrullero Jujube', 'Patrullero Tamarindo', 'Patrullero Sócrates', 'Patrullero Epicuro', 'Patrullero Platón', 'Patrullero Wallis', 'Pasiphae',
+		'Pasillo delantero', 'Pasillo central', 'Pasillo trasero', 'Planeta', 'Icarus', 'Dormitorio Alpha', 'Dormitorio Beta',
+		'Almacén delantero', 'Almacén Alpha central', 'Almacén Alpha trasero', 'Almacén Beta central', 'Almacén Beta trasero', 'Espacio infinito', 'El limbo'];
+
+	var TXT = {
+		//displayTreatment()
+		checkVaccinated: "vacunado el %1",
+		checkTransferred: "%1 se ha transferido el %2",
+		checkIsMush: "desde %1",
+		checkStolen: "cuerpo robado por %1 el %2",
+		checkPirated: ", talky pirateado el %1",
+
+		//charMovements()
+		movementsAnalysisButton: "Análisis de movimientos",
+		movementsTitle: "Movimientos de %1",
+		presentChars: "Presentes: ",
+		nobodyPresent: "nadie.",
+		charLogsTitle: "Historial del personaje: ",
+		roomLogsTitle: "Historial de la sala: ",
+
+		//generalAnalysis()
+		generalAnalysisButton: "Análisis general de historiales",
+		noDeaths: "ninguna.",
+		noPILGRED: "no.",
+		noWaves: "ninguna.",
+		noPerished: "nunca.",
+		noDefaced: "ninguno.",
+		noAlarms: "ninguna.",
+		noPsyDiseases: "ninguna.",
+		psyDiseasesTitle: "<b>Historial enfermedades psicológicas:</b> ",
+		wavesTitle: "<b>Oleadas de Hunter:</b> ",
+		perishedTitle: "<b>Destrucción de víveres perecederos:</b> ",
+		defacedTitle: "<b>Registros borrados:</b> ",
+		alarmsTitle: "<b>Mycoalarmas sonadas:</b> ",
+		PILGREDTitle: "<b>PILGRED reparado:</b> ",
+		deathsTitle: "<b>Muertes:</b> ",
+		deathsOxygen: "Sin oxígeno",
+		deathsAll: "Todos los demás",
+		deathsSol: "Regreso al Sistema Solar",
+		deathsEden: "Viaje al Edén",
+		titlesTitle: "<b>Títulos:</b> ",
+		titleCommander: "Comandante",
+		titleComms: "Oficial de Comunicaciones",
+		titleNERON: "Admin. NERON",
+
+		//evaluateSin()
+		sinNothingReg: /Nada/,
+		sinMushReg: /Mush/,
+		sinGriefingReg: /Trolleo|Suicida/,
+		sinEncourageReg: /Incitación/,
+		sinLanguageReg: /Lenguaje/,
+		sins: ["", "Mush", "Troll/Suicida", "Incitación", "Lenguaje", "Otros"],
+
+		//Misc.
+		reportsNumber: ": %1 denuncia(s) en %2 nave(s).",
+		logsHeight: "Alto de las ventanas de historiales: ",
+		easterEgg: "Oh freddled gruntbuggly,<br />Thy micturations are to me<br />As plurdled gabbleblotchits on a lurgid bee.<br />Groop, I implore thee, my foonting turlingdromes<br />And hooptiously drangle me with crinkly bindlewurdles,<br />Or I will rend thee in the gobberwarts<br />With my blurglecruncheon, see if I don't!",
+		reverseWall: "Invertir muro",
+		mushDayCycleReg: /^\s*Día [0-9]+ Ciclo [0-9]+\s*$/,
+		modsStart: "Comenzar script FDS",
+		modsHideMush: "Ocultar/mostrar Mushes",
+		modsHidePseudos: "Ocultar/mostrar nicks",
+		modsAPCount: "<em>(Solo Mods)</em> <b>Energía usada:</b> ~%1 PA",
+		modsAccountStatus: "<em>(Solo Mods)</em> <b>Cuenta denunciada:</b> ",
+		modsAccountStatusActive: "activa",
+		modsAccountStatusDeleted: "<em>borrada</em>",
+		scriptVersion: "FDScript version: ",
+
+		//Reports sorting
+		shipSort: "Ordenado por nave",
+		altSort: "Ordenado general",
+		gamesSort: "Ordenar por número de partidas",
+		gamesSortDown: "Ordenar por número de partidas (desc.)",
+		gamesSortUp: "Ordenar por número de partidas (asc.)",
+		gamesNumberReg: /N. de partida : (\d*)/,
+
+		//All private channels analysis
+		allChannelsAnalysisButton: "Análisis de todos los canales",
+		hideShowButton: "Ocultar/mostrar todo",
+		channelsOr: "O",
+		channelsAnd: "Y",
+
+		//Private channels analysis
+		channelsAnalysisButton: "Análisis de canales",
+		joinedChannelReg: /ha entrado al chat/,
+		leftChannelReg: /ha cerrado la pestaña|ha pasado a mejor vida|ha salido de la sala y no tiene walkie-talkie/,
+		channelTitle: "Canal nº",
+		channelsAnalysisBug: "Un registro faltante en los canales privados impide el correcto análisis. Proceso abortado. Perdone las molestias. :/",
+
+		//Personal logs analysis
+		logsAnalysisButton: "Análisis de registros",
+		statusTitle: "<b>Estado:</b> ",
+		skillsTitle: "<b>Habilidades:</b> ",
+		noSkills: "ninguna.",
+	};
+}
 else {
 	var rooms = ['Bridge', 'Alpha Bay', 'Bravo Bay', 'Alpha Bay 2', 'Nexus', 'Medlab', 'Laboratory', 'Refectory', 'Hydroponic Garden', 'Engine Room', 'Front Alpha Turret', 'Centre Alpha Turret', 'Rear Alpha Turret', 'Front Bravo Turret', 'Centre Bravo Turret', 'Rear Bravo Turret', 'Patrol Ship Tomorrowland', 'Patrol Ship Olive Grove', 'Patrol Ship Yasmin', 'Patrol Ship Wolf', 'Patrol Ship E-Street', 'Patrol Ship Eponine', 'Patrol Ship Carpe Diem', 'Pasiphae', 'Front Corridor', 'Central Corridor', 'Rear Corridor', 'Planet', 'Icarus Bay', 'Alpha Dorm', 'Bravo Dorm', 'Front Storage', 'Centre Alpha Storage', 'Rear Alpha Storage', 'Centre Bravo Storage', 'Rear Bravo Storage', 'Outer Space', 'Limbo'];
 
