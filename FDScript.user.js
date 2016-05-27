@@ -1,13 +1,13 @@
 ﻿// ==UserScript==
 // @name     FDScript
 // @include  http://mush.vg/fds*
-// @include  http://mush.twinoid.com/fds*
+// @include  http://mush.twinoid.*/fds*
 // @require  https://code.jquery.com/jquery-2.2.1.min.js
 // @version  1.4.3
 // @grant    unsafeWindow
 // @grant    GM_xmlhttpRequest
 // @connect  mush.vg
-// @connect  mush.twinoid.com
+// @connect  mush.twinoid.*
 // @author   Ship-sorting, sanction-sorting and displayTreatment() by Lundi, all the rest by LAbare
 // ==/UserScript==
 
